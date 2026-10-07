@@ -1,0 +1,17 @@
+{
+  "name": "@bdiff/report",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Renders a bdiff RunResult into a static, self-contained HTML report.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "bdiff-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@bdiff/core": "workspace:*"
+  }
+}

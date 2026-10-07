@@ -1,0 +1,14 @@
+{
+  "name": "@bdiff/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "bdiff engine: domain types, pipeline, stages and adapters behind interfaces.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "bdiff-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}
