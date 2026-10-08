@@ -37,6 +37,8 @@ export interface ArtifactPaths {
   /** Git worktree of one side: `worktrees/<side>`. Removed when the run ends. */
   worktree(side: Side): string;
   readonly diffDir: string;
+  /** Overlay of what changed on `route` between base and head: `diff/ui/<route>.png`. */
+  diffOverlay(route: string): string;
   readonly reportDir: string;
   readonly reportHtml: string;
 }
@@ -72,6 +74,7 @@ export function createArtifactPaths(root: string, runId: RunId): ArtifactPaths {
       path.join(runDir, 'api', probeRun, `${artifactFileStem(requestKey)}.json`),
     worktree: (side) => path.join(runDir, 'worktrees', side),
     diffDir: path.join(runDir, 'diff'),
+    diffOverlay: (route) => path.join(runDir, 'diff', 'ui', `${artifactFileStem(route)}.png`),
     reportDir,
     reportHtml: path.join(reportDir, 'index.html'),
   };

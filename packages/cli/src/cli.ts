@@ -7,6 +7,7 @@ import {
   createApiProbeStage,
   createCostCalculator,
   createDependencyCruiserGraph,
+  createDiffStage,
   createEnvironmentStage,
   createExecaExec,
   createFetchHttpClient,
@@ -21,6 +22,7 @@ import {
   loadLlmConfig,
   loadPricingTable,
   nodeFileSystem,
+  pngCodec,
   runPipeline,
   systemClock,
 } from '@bdiff/core';
@@ -112,6 +114,7 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
       environment: createEnvironmentStage({ exec, fs: nodeFileSystem, http }),
       probeUi: createUiProbeStage({ browser: createPlaywrightLauncher(), fs: nodeFileSystem }),
       probeApi: createApiProbeStage({ http, fs: nodeFileSystem, llm }),
+      diff: createDiffStage({ fs: nodeFileSystem, images: pngCodec }),
     }),
     createLogger: (level) => createLogger({ level }),
     pricingPath: env.BDIFF_PRICING ?? path.join(REPO_ROOT, 'config', 'pricing.json'),
