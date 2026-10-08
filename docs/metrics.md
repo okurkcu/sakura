@@ -33,6 +33,7 @@ Written atomically: a temp file is written next to it and renamed, so a reader n
 | `totals`         | object                                  | Sums over `llmUsage` (`llmCalls`, token counts, `llmCostUsd`) and `computeSeconds` (sum of both sides).                                                                                                    |
 | `counts`         | object                                  | `routesProbed`, `endpointsProbed`, `rawDiffs`, `noiseDiffs`, `findings`.                                                                                                                                   |
 | `apiRequests`    | array                                   | The API probe's request set, in send order: `key`, `source` (`explicit`, `route` or `generated` by the LLM), `method`, `path`, `headers`, `body`, `description`, `endpoint`. Empty when no API was probed. |
+| `riskLevel`      | `low` \| `medium` \| `high` \| `null`   | The interpretation's risk level; `null` when the run produced no interpretation (failed or skipped before it).                                                                                             |
 
 Token counts per LLM call mirror the API's `usage` object:
 
