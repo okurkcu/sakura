@@ -50,6 +50,16 @@ Other environment variables:
 
 On the first Ctrl+C (or SIGTERM), bdiff aborts the stage in progress, runs every cleanup hook (containers, worktrees, browsers), renders the report and writes the record. A second Ctrl+C exits immediately without waiting for cleanup.
 
+## Chromium sandbox on Linux
+
+The UI probe loads pages built from the repository under test, so Chromium always runs with its sandbox on; bdiff has no option to turn it off. Ubuntu 23.10+ restricts the unprivileged user namespaces the sandbox needs, and the run then fails at `probe-ui` with `BROWSER_UNAVAILABLE` ("Chromium could not start its sandbox"). Allow them until the next reboot with:
+
+```bash
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+```
+
+or permanently with an AppArmor profile for Playwright's Chromium, as described in [Chromium's AppArmor notes](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md). macOS needs nothing.
+
 ## Containers
 
 `bdiff run` starts base and head in Docker containers of one compose project, `bdiff-<runId>`, and removes it when the run ends, including after Ctrl+C or SIGTERM. Only a process killed with `kill -9` cannot clean up. To remove any bdiff projects left behind:

@@ -60,7 +60,7 @@ describe('createPlaywrightLauncher (real Chromium)', () => {
   let server: Server;
   let origin: string;
   let dir: string;
-  let browser: UiBrowser;
+  let browser: UiBrowser | undefined;
 
   beforeAll(async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'bdiff-browser-'));
@@ -91,17 +91,21 @@ describe('createPlaywrightLauncher (real Chromium)', () => {
   });
 
   afterAll(async () => {
-    await browser.close();
+    await browser?.close();
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
     await rm(dir, { recursive: true, force: true });
   });
 
-  const capture = (route: string, name: string, timeoutMs = 15_000) =>
-    browser.capture(`${origin}${route}`, {
+  const capture = (route: string, name: string, timeoutMs = 15_000) => {
+    if (browser === undefined) {
+      throw new Error('the browser did not start');
+    }
+    return browser.capture(`${origin}${route}`, {
       screenshotPath: path.join(dir, `${name}.png`),
       timeoutMs,
     });
+  };
 
   it('captures the same page twice into identical screenshots, animations and caret included', async () => {
     const first = await capture('/', 'home-a');

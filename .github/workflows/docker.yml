@@ -42,6 +42,10 @@ jobs:
 
       - run: pnpm browser:install --with-deps
 
+      # Ubuntu 23.10+ restricts unprivileged user namespaces with AppArmor, which Chromium's
+      # sandbox needs. bdiff never turns the sandbox off, so allow them on this throwaway runner.
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - run: docker pull --quiet node:22
 
       - run: pnpm test:docker

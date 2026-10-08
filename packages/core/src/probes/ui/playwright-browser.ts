@@ -77,13 +77,9 @@ export function createPlaywrightLauncher(
       try {
         browser = await chromium.launch({ chromiumSandbox: true, timeout: LAUNCH_TIMEOUT_MS });
       } catch (error) {
-        const missing =
-          error instanceof Error && error.message.includes("Executable doesn't exist");
         throw new BdiffError(
           'BROWSER_UNAVAILABLE',
-          missing
-            ? `Chromium for Playwright is not installed; run \`${BROWSER_INSTALL_COMMAND}\``
-            : 'Could not start Chromium',
+          launchFailureMessage(error instanceof Error ? error.message : String(error)),
           { cause: error },
         );
       }
@@ -133,6 +129,23 @@ export function createPlaywrightLauncher(
       };
     },
   };
+}
+
+/**
+ * Explains why Chromium did not start, from Playwright's launch error. The sandbox is never turned
+ * off to work around a failure: the pages bdiff loads come from untrusted repositories. Pure.
+ */
+export function launchFailureMessage(errorMessage: string): string {
+  if (errorMessage.includes("Executable doesn't exist")) {
+    return `Chromium for Playwright is not installed; run \`${BROWSER_INSTALL_COMMAND}\``;
+  }
+  if (errorMessage.includes('No usable sandbox')) {
+    return (
+      'Chromium could not start its sandbox; on Ubuntu 23.10+ allow unprivileged user namespaces ' +
+      '(see "Chromium sandbox on Linux" in docs/cli.md)'
+    );
+  }
+  return 'Could not start Chromium';
 }
 
 /**
