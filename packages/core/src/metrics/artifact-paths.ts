@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { RunIdSchema } from './run-id.js';
 import type { RunId } from './run-id.js';
-import type { ProbeRun } from '../domain/stage.js';
+import type { ProbeRun, Side } from '../domain/stage.js';
 import { BdiffError } from '../errors/bdiff-error.js';
 
 /** Longest readable part of an artifact file name, before the hash suffix. */
@@ -15,7 +15,8 @@ const MAX_SLUG_LENGTH = 60;
  *
  * ```
  * <root>/results.csv
- * <root>/runs/<runId>/run.json | compose.yml | logs/ | ui/<probeRun>/ | api/<probeRun>/ | diff/ | report/index.html
+ * <root>/runs/<runId>/run.json | compose.yml | logs/ | worktrees/<side>/ | ui/<probeRun>/ | api/<probeRun>/
+ *                     | diff/ | report/index.html
  * ```
  */
 export interface ArtifactPaths {
@@ -33,6 +34,8 @@ export interface ArtifactPaths {
   uiScreenshot(probeRun: ProbeRun, route: string): string;
   /** Response for one request (e.g. `GET /api/orders/latest`) in one probe run. */
   apiResponse(probeRun: ProbeRun, requestKey: string): string;
+  /** Git worktree of one side: `worktrees/<side>`. Removed when the run ends. */
+  worktree(side: Side): string;
   readonly diffDir: string;
   readonly reportDir: string;
   readonly reportHtml: string;
@@ -67,6 +70,7 @@ export function createArtifactPaths(root: string, runId: RunId): ArtifactPaths {
       path.join(runDir, 'ui', probeRun, `${artifactFileStem(route)}.png`),
     apiResponse: (probeRun, requestKey) =>
       path.join(runDir, 'api', probeRun, `${artifactFileStem(requestKey)}.json`),
+    worktree: (side) => path.join(runDir, 'worktrees', side),
     diffDir: path.join(runDir, 'diff'),
     reportDir,
     reportHtml: path.join(reportDir, 'index.html'),
