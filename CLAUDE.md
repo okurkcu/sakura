@@ -19,6 +19,7 @@ Work is tracked in Jira: project **SKR**, epic **SKR-14**, tasks SKR-15 → SKR-
 | `pnpm test`          | Vitest, all projects. `pnpm vitest run --project core` for just one. |
 | `pnpm test:coverage` | Vitest with v8 coverage.                                             |
 | `pnpm test:docker`   | `*.docker.test.ts` integration tests; needs a running Docker daemon. |
+| `pnpm bdiff run …`   | Runs the CLI from source; flags and exit codes in `docs/cli.md`.     |
 | `pnpm fixture:build` | Builds the fixture git repo in a temp dir and prints its path.       |
 | `pnpm build`         | `tsc -b tsconfig.build.json` (project references) into `dist/`.      |
 | `pnpm format`        | Prettier write.                                                      |
@@ -65,14 +66,19 @@ interpret/     findings → explanation
 ### Pipeline
 
 ```
-prepareWorkspace → detectRecipe → startEnvironments(base, head)
-  → analyzeImpact → probe(baseA, baseB, head) → diff + noise filter
-  → interpret (LLM) → render report → record metrics
+main chain (stops at the first error):
+  workspace → impact ─(skip? stop)→ recipe → environment(base, head)
+    → probe-ui(baseA, baseB, head) → probe-api(baseA, baseB, head) → diff + noise filter → interpret (LLM)
+finalization (always, also after failure, skip, abort or timeout):
+  cleanup hooks (LIFO) → report → final record → run.json + results.csv (metrics)
 ```
 
+- `runPipeline(target, stages, deps)` in `packages/core/src/pipeline` is the orchestrator; `PipelineStages` types every stage's input and output. Each stage task replaces one stub from `createStubStages()` in the CLI composition root; the flow stays the same.
 - Each stage: typed input → typed output. Stages never call each other; only the orchestrator sequences them.
+- Impact runs right after the workspace so a skipped PR (docs only, tests only) never builds containers.
+- The report runs in finalization so failed and skipped runs get a report too; it receives `RunResult` with a preview of the record. A failing report fails an otherwise successful run (stage `report`); a failing cleanup hook fails it with `CLEANUP_FAILED`.
 - `baseA` and `baseB` are two captures of the **same base environment**. Anything that differs between them is noise and is masked when comparing base vs head.
-- The orchestrator measures each stage, stops on first error, always runs cleanup hooks (LIFO) in `finally`, and always writes a run record — success, failure or skip.
+- The orchestrator measures each stage, stops on first error, always runs cleanup hooks (LIFO), and always writes a run record — success, failure or skip. A run timeout (`RUN_TIMEOUT`) or Ctrl+C (`ABORTED`) aborts the stage in progress through `ctx.signal`; a stage that ignores the signal is abandoned, and its resources are released by its cleanup hooks.
 
 ### Core contracts (shape, refine as needed)
 
@@ -83,14 +89,17 @@ interface Stage<I, O> {
 }
 
 interface StageContext {
-  runId: string;
-  logger: Logger;
-  timer: StageTimer;
+  runId: RunId;
+  target: Target;
+  logger: Logger; // bound to run and stage
+  clock: Clock;
   paths: ArtifactPaths;
-  signal: AbortSignal;
-  budget: Budget; // LLM spend cap per run
-  onCleanup(fn: () => Promise<void>): void;
-  recordLlmUsage(u: LlmUsage): void;
+  signal: AbortSignal; // run timeout, Ctrl+C
+  budget: Budget; // LLM spend cap per run: call budget.assertAvailable() before every LLM call
+  onCleanup(name: string, hook: (signal: AbortSignal) => Promise<void>): void;
+  recordLlmUsage(purpose: string, usage: TokenUsage): LlmUsage;
+  addCounts(counts: Partial<RunCounts>): void;
+  setComputeSeconds(side: Side, seconds: number): void;
 }
 
 type ProbeRun = 'baseA' | 'baseB' | 'head';

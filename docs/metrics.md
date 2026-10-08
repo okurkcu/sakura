@@ -48,47 +48,47 @@ Token counts per LLM call mirror the API's `usage` object:
 
 The first line is the header. Rows are RFC 4180: fields containing a comma, quote or line break are quoted, and quotes are doubled. Lines end with `\n`. Empty means "not applicable": no failure, no skip, no PR number, or a stage that never ran. bdiff refuses to append to an existing file whose header differs (`METRICS_CSV_MISMATCH`); move the old file aside after a column change.
 
-| Column                      | Meaning                                           |
-| --------------------------- | ------------------------------------------------- |
-| `run_id`                    | Run id.                                           |
-| `schema_version`            | `run.json` format version.                        |
-| `tool_version`              | Git SHA of bdiff.                                 |
-| `started_at`                | ISO 8601 UTC.                                     |
-| `finished_at`               | ISO 8601 UTC.                                     |
-| `duration_ms`               | Wall time of the run.                             |
-| `status`                    | `success`, `failed` or `skipped`.                 |
-| `failure_code`              | Error code of a failed run.                       |
-| `failure_stage`             | Stage that failed.                                |
-| `failure_message`           | Error message of a failed run.                    |
-| `skip_reason`               | Why the run was skipped.                          |
-| `repo_url`                  | Repository URL or path.                           |
-| `base_ref`                  | Base ref as given.                                |
-| `head_ref`                  | Head ref as given.                                |
-| `pr_number`                 | Pull request number, if any.                      |
-| `ms_workspace`              | Total ms in the workspace stage.                  |
-| `ms_recipe`                 | Total ms in the recipe stage.                     |
-| `ms_environment`            | Total ms in the environment stage (all attempts). |
-| `ms_impact`                 | Total ms in the impact stage.                     |
-| `ms_probe_ui`               | Total ms in the UI probe stage.                   |
-| `ms_probe_api`              | Total ms in the API probe stage.                  |
-| `ms_diff`                   | Total ms in the diff stage.                       |
-| `ms_interpret`              | Total ms in the interpret stage.                  |
-| `ms_report`                 | Total ms in the report stage.                     |
-| `ms_metrics`                | Total ms in the metrics stage.                    |
-| `compute_seconds_base`      | Container CPU seconds, base side.                 |
-| `compute_seconds_head`      | Container CPU seconds, head side.                 |
-| `llm_calls`                 | Number of LLM calls.                              |
-| `llm_input_tokens`          | Uncached input tokens, all calls.                 |
-| `llm_output_tokens`         | Output tokens, all calls.                         |
-| `llm_cache_read_tokens`     | Cache-read tokens, all calls.                     |
-| `llm_cache_write_5m_tokens` | 5-minute cache-write tokens, all calls.           |
-| `llm_cache_write_1h_tokens` | 1-hour cache-write tokens, all calls.             |
-| `llm_cost_usd`              | LLM cost in USD, all calls.                       |
-| `routes_probed`             | Pages probed.                                     |
-| `endpoints_probed`          | API endpoints probed.                             |
-| `raw_diffs`                 | Differences before noise filtering.               |
-| `noise_diffs`               | Differences classified as noise.                  |
-| `findings`                  | Findings reported.                                |
+| Column                      | Meaning                                                                                   |
+| --------------------------- | ----------------------------------------------------------------------------------------- |
+| `run_id`                    | Run id.                                                                                   |
+| `schema_version`            | `run.json` format version.                                                                |
+| `tool_version`              | Git SHA of bdiff.                                                                         |
+| `started_at`                | ISO 8601 UTC.                                                                             |
+| `finished_at`               | ISO 8601 UTC.                                                                             |
+| `duration_ms`               | Wall time of the run.                                                                     |
+| `status`                    | `success`, `failed` or `skipped`.                                                         |
+| `failure_code`              | Error code of a failed run.                                                               |
+| `failure_stage`             | Stage that failed.                                                                        |
+| `failure_message`           | Error message of a failed run.                                                            |
+| `skip_reason`               | Why the run was skipped.                                                                  |
+| `repo_url`                  | Repository URL or path.                                                                   |
+| `base_ref`                  | Base ref as given.                                                                        |
+| `head_ref`                  | Head ref as given.                                                                        |
+| `pr_number`                 | Pull request number, if any.                                                              |
+| `ms_workspace`              | Total ms in the workspace stage.                                                          |
+| `ms_recipe`                 | Total ms in the recipe stage.                                                             |
+| `ms_environment`            | Total ms in the environment stage (all attempts).                                         |
+| `ms_impact`                 | Total ms in the impact stage.                                                             |
+| `ms_probe_ui`               | Total ms in the UI probe stage.                                                           |
+| `ms_probe_api`              | Total ms in the API probe stage.                                                          |
+| `ms_diff`                   | Total ms in the diff stage.                                                               |
+| `ms_interpret`              | Total ms in the interpret stage.                                                          |
+| `ms_report`                 | Total ms rendering the report (runs for every status).                                    |
+| `ms_metrics`                | Always empty: the record is written after it is final, so it can't time itself. Reserved. |
+| `compute_seconds_base`      | Container CPU seconds, base side.                                                         |
+| `compute_seconds_head`      | Container CPU seconds, head side.                                                         |
+| `llm_calls`                 | Number of LLM calls.                                                                      |
+| `llm_input_tokens`          | Uncached input tokens, all calls.                                                         |
+| `llm_output_tokens`         | Output tokens, all calls.                                                                 |
+| `llm_cache_read_tokens`     | Cache-read tokens, all calls.                                                             |
+| `llm_cache_write_5m_tokens` | 5-minute cache-write tokens, all calls.                                                   |
+| `llm_cache_write_1h_tokens` | 1-hour cache-write tokens, all calls.                                                     |
+| `llm_cost_usd`              | LLM cost in USD, all calls.                                                               |
+| `routes_probed`             | Pages probed.                                                                             |
+| `endpoints_probed`          | API endpoints probed.                                                                     |
+| `raw_diffs`                 | Differences before noise filtering.                                                       |
+| `noise_diffs`               | Differences classified as noise.                                                          |
+| `findings`                  | Findings reported.                                                                        |
 
 ## Pricing: `config/pricing.json`
 
