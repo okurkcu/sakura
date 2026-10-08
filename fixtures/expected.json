@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "baseBranch": "main",
+  "pages": ["/", "/dashboard", "/login", "/orders"],
+  "endpoints": ["GET /api/health", "GET /api/orders/latest"],
+  "noisyRoutes": ["/dashboard"],
+  "branches": {
+    "pr/ui-change": {
+      "description": "Adds a \"Continue with Google\" button to the login page.",
+      "changedFiles": [{ "status": "modified", "path": "app/login/page.tsx" }],
+      "impact": { "routes": ["/login"], "endpoints": [] },
+      "findings": [
+        { "kind": "visual", "severity": "info", "location": { "route": "/login" } },
+        { "kind": "text", "severity": "info", "location": { "route": "/login" } }
+      ]
+    },
+    "pr/api-breaking": {
+      "description": "Returns the latest order's total as a formatted string instead of a number, and adds its currency.",
+      "changedFiles": [{ "status": "modified", "path": "app/api/orders/latest/route.ts" }],
+      "impact": { "routes": [], "endpoints": ["GET /api/orders/latest"] },
+      "findings": [
+        {
+          "kind": "type-changed",
+          "severity": "breaking",
+          "location": { "endpoint": "GET /api/orders/latest", "jsonPath": "$.total" }
+        },
+        {
+          "kind": "field-added",
+          "severity": "warning",
+          "location": { "endpoint": "GET /api/orders/latest", "jsonPath": "$.currency" }
+        }
+      ]
+    },
+    "pr/refactor-no-change": {
+      "description": "Moves and renames the order helpers; behavior is identical. Probes the noisy dashboard, which must produce no findings.",
+      "changedFiles": [
+        { "status": "modified", "path": "app/api/orders/latest/route.ts" },
+        { "status": "modified", "path": "app/dashboard/page.tsx" },
+        { "status": "modified", "path": "app/orders/page.tsx" },
+        { "status": "renamed", "path": "lib/order-repository.ts", "oldPath": "lib/orders.ts" }
+      ],
+      "impact": { "routes": ["/dashboard", "/orders"], "endpoints": ["GET /api/orders/latest"] },
+      "findings": []
+    },
+    "pr/docs-only": {
+      "description": "Only changes the README.",
+      "changedFiles": [{ "status": "modified", "path": "README.md" }],
+      "impact": { "skip": { "reason": "docs-only" }, "routes": [], "endpoints": [] },
+      "findings": []
+    }
+  }
+}

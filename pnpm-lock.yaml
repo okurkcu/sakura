@@ -209,6 +209,15 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@8.3.3(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
 
+  fixtures:
+    dependencies:
+      '@bdiff/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+
   packages/cli:
     dependencies:
       '@bdiff/core':

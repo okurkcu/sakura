@@ -8,6 +8,7 @@ import {
   rm,
   writeFile,
 } from 'node:fs/promises';
+import path from 'node:path';
 
 import { BdiffError } from '../errors/bdiff-error.js';
 
@@ -31,6 +32,18 @@ export interface FileSystem {
   exists(path: string): Promise<boolean>;
   /** Entry names in a directory, sorted for determinism. */
   readdir(path: string): Promise<string[]>;
+  /**
+   * Every file under `root`, recursively, as `/`-separated paths relative to `root`, sorted.
+   * Directories named in `ignoreDirs` (e.g. `node_modules`) are not entered. Symbolic links are
+   * listed but never followed.
+   */
+  listFiles(root: string, options?: ListFilesOptions): Promise<string[]>;
+}
+
+/** Options for {@link FileSystem.listFiles}. */
+export interface ListFilesOptions {
+  /** Directory names to skip wherever they occur. */
+  readonly ignoreDirs?: readonly string[];
 }
 
 /** The real file system, over `node:fs/promises`. */
@@ -59,6 +72,26 @@ export const nodeFileSystem: FileSystem = {
       }
     }),
   readdir: (path) => attempt('readdir', path, async () => (await readdir(path)).sort()),
+  listFiles: (root, options = {}) =>
+    attempt('listFiles', root, async () => {
+      const ignored = new Set(options.ignoreDirs ?? []);
+      const files: string[] = [];
+      const walk = async (relativeDir: string): Promise<void> => {
+        const entries = await readdir(path.join(root, relativeDir), { withFileTypes: true });
+        for (const entry of entries) {
+          const relative = relativeDir === '' ? entry.name : `${relativeDir}/${entry.name}`;
+          if (entry.isDirectory()) {
+            if (!ignored.has(entry.name)) {
+              await walk(relative);
+            }
+          } else {
+            files.push(relative);
+          }
+        }
+      };
+      await walk('');
+      return files.sort();
+    }),
 };
 
 async function attempt<T>(

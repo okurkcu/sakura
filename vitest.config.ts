@@ -8,6 +8,7 @@ const packageProject = (name: string) => ({
   test: {
     name,
     include: [`packages/${name}/src/**/*.test.ts`],
+    exclude: ['**/*.docker.test.ts'],
   },
 });
 
@@ -18,6 +19,14 @@ export default defineConfig({
       packageProject('core'),
       packageProject('report'),
       packageProject('cli'),
+      {
+        extends: true,
+        test: {
+          name: 'fixtures',
+          include: ['fixtures/*.test.ts'],
+          exclude: ['**/*.docker.test.ts'],
+        },
+      },
       {
         extends: true,
         test: {

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -72,6 +72,53 @@ describe('nodeFileSystem', () => {
     await expect(fs.readFile(missing)).rejects.toMatchObject({
       code: 'FS_FAILED',
       details: { operation: 'readFile', path: missing },
+    });
+  });
+});
+
+describe('nodeFileSystem.listFiles', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'bdiff-ls-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('lists files recursively as sorted, slash-separated relative paths', async () => {
+    for (const file of [
+      'b.txt',
+      'a/z.ts',
+      'a/b/c.ts',
+      'node_modules/x/index.js',
+      'a/node_modules/y.js',
+    ]) {
+      await fs.mkdir(path.dirname(path.join(dir, file)));
+      await fs.writeFile(path.join(dir, file), '');
+    }
+
+    expect(await fs.listFiles(dir, { ignoreDirs: ['node_modules'] })).toEqual([
+      'a/b/c.ts',
+      'a/z.ts',
+      'b.txt',
+    ]);
+    expect(await fs.listFiles(dir)).toContain('node_modules/x/index.js');
+  });
+
+  it('lists symbolic links without following them', async () => {
+    await fs.mkdir(path.join(dir, 'real'));
+    await fs.writeFile(path.join(dir, 'real', 'file.txt'), '');
+    await symlink(path.join(dir, 'real'), path.join(dir, 'link'));
+
+    expect(await fs.listFiles(dir)).toEqual(['link', 'real/file.txt']);
+  });
+
+  it('wraps a missing root in FS_FAILED', async () => {
+    await expect(fs.listFiles(path.join(dir, 'missing'))).rejects.toMatchObject({
+      code: 'FS_FAILED',
+      details: { operation: 'listFiles' },
     });
   });
 });

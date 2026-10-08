@@ -17,7 +17,14 @@ const boundaryMessage = (pkg, forbidden) =>
 
 export default defineConfig(
   {
-    ignores: ['**/dist/**', '**/coverage/**', '.bdiff/**'],
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '.bdiff/**',
+      // The fixture app is a separate Next.js project with its own toolchain.
+      'fixtures/sample-next-app/**',
+      'fixtures/branches/**',
+    ],
   },
 
   js.configs.recommended,

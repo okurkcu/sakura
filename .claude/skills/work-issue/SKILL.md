@@ -58,6 +58,14 @@ Reply with:
 - Add a Jira comment on the issue with the PR link.
 - Leave the issue In Progress. Move it to **Done** only after the PR is merged (when the user says so, or when you see it merged).
 
+## After the merge
+
+Once the PR is merged (check with `gh pr view <n> --json state`):
+
+- Move the issue to **Done**.
+- Switch to `main` and fast-forward it from `origin/main`.
+- Delete the task branch on the remote and locally, but only after `git rev-list --count main..origin/<branch>` is `0`. Only `main` should remain. Never delete a branch whose PR isn't merged.
+
 ## 7. Report
 
 End with a short summary: PR link, CI status, acceptance-criteria status, and anything the user must decide or do (for example, review and merge).
