@@ -9,6 +9,16 @@
       "bdiff-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "bdiff-source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
     }
+  },
+  "dependencies": {
+    "execa": "^10.1.0",
+    "pino": "^10.4.0",
+    "zod": "^4.6.5"
   }
 }
