@@ -3,10 +3,6 @@ import { z } from 'zod';
 // Contracts owned by later tasks. They are declared here so stage signatures are stable; each task
 // replaces its placeholder with the real schema.
 
-/** Base and head apps running in containers, with URLs to probe. TODO(SKR-22): define the schema. */
-export const RunningEnvironmentSchema = z.looseObject({});
-export type RunningEnvironment = z.infer<typeof RunningEnvironmentSchema>;
-
 /**
  * Which routes and endpoints to probe. `skip` means the PR cannot change behavior (e.g. docs only)
  * and the run ends as `skipped`. TODO(SKR-24): define the rest of the schema.

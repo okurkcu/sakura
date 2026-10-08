@@ -76,7 +76,7 @@ const runRecordBase = z.strictObject({
   finishedAt: z.iso.datetime(),
   durationMs: nonNegative,
   stageTimings: z.array(StageTimingSchema),
-  /** Container CPU time per side, in seconds. */
+  /** Wall-clock seconds the containers of each side (app and services) ran. */
   computeSeconds: z.strictObject({ base: nonNegative, head: nonNegative }),
   llmUsage: z.array(LlmUsageSchema),
   totals: RunTotalsSchema,

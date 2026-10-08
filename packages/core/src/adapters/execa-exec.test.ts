@@ -194,6 +194,44 @@ describe('createExecaExec', () => {
     });
   });
 
+  describe('signalling a process group that is already gone', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    /** Makes every group kill really happen, then report `code`, like a racing exit would. */
+    function killReports(code: string) {
+      const realKill = process.kill.bind(process);
+      vi.spyOn(process, 'kill').mockImplementation((pid: number, signal?: string | number) => {
+        realKill(pid, signal);
+        if (pid < 0) {
+          throw Object.assign(new Error(`kill ${code}`), { code });
+        }
+        return true;
+      });
+    }
+
+    it.each(['ESRCH', 'EPERM'])(
+      'treats %s as a group that is gone, without crashing',
+      async (code) => {
+        killReports(code);
+
+        const error = await rejection(exec.run('sleep', ['30'], options({ timeoutMs: 200 })));
+
+        expect(error.code).toBe('EXEC_TIMEOUT');
+      },
+    );
+
+    it('reports any other kill failure as EXEC_FAILED instead of throwing from the abort listener', async () => {
+      killReports('EINVAL');
+
+      const error = await rejection(exec.run('sleep', ['30'], options({ timeoutMs: 200 })));
+
+      expect(error.code).toBe('EXEC_FAILED');
+      expect(error.cause).toMatchObject({ code: 'EINVAL' });
+    });
+  });
+
   describe('abort', () => {
     it('kills the child and throws ABORTED when the signal aborts', async () => {
       const controller = new AbortController();

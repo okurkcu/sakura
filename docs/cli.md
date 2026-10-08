@@ -49,3 +49,13 @@ Other environment variables:
 | `130` | Interrupted by SIGINT or SIGTERM; cleanup ran and the run was recorded as `ABORTED`.          |
 
 On the first Ctrl+C (or SIGTERM), bdiff aborts the stage in progress, runs every cleanup hook (containers, worktrees, browsers), renders the report and writes the record. A second Ctrl+C exits immediately without waiting for cleanup.
+
+## Containers
+
+`bdiff run` starts base and head in Docker containers of one compose project, `bdiff-<runId>`, and removes it when the run ends, including after Ctrl+C or SIGTERM. Only a process killed with `kill -9` cannot clean up. To remove any bdiff projects left behind:
+
+```bash
+docker compose ls --all --quiet --filter name=bdiff- | xargs -n1 -I{} docker compose --project-name {} down --volumes --remove-orphans
+```
+
+Each app container gets 2 CPUs and 4 GB of memory; its port is published on `127.0.0.1` only. Setup (install, database, build, start) has 10 minutes. The logs of each side are saved in `runs/<runId>/logs/{base,head}.log`.

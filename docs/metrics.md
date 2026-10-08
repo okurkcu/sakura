@@ -75,8 +75,8 @@ The first line is the header. Rows are RFC 4180: fields containing a comma, quot
 | `ms_interpret`              | Total ms in the interpret stage.                                                          |
 | `ms_report`                 | Total ms rendering the report (runs for every status).                                    |
 | `ms_metrics`                | Always empty: the record is written after it is final, so it can't time itself. Reserved. |
-| `compute_seconds_base`      | Container CPU seconds, base side.                                                         |
-| `compute_seconds_head`      | Container CPU seconds, head side.                                                         |
+| `compute_seconds_base`      | Container run time (wall clock), base side.                                               |
+| `compute_seconds_head`      | Container run time (wall clock), head side.                                               |
 | `llm_calls`                 | Number of LLM calls.                                                                      |
 | `llm_input_tokens`          | Uncached input tokens, all calls.                                                         |
 | `llm_output_tokens`         | Output tokens, all calls.                                                                 |
@@ -105,4 +105,4 @@ input × inputPerMTok + output × outputPerMTok + cacheRead × cacheReadPerMTok
 
 all divided by 1,000,000. Batch API and data-residency multipliers are not modelled; bdiff uses neither.
 
-Compute cost (container time) is recorded as `computeSeconds` only. Converting it to dollars is left to the stats step.
+Compute cost (container time) is recorded as `computeSeconds` only: wall-clock container run time, which is what CI runners bill, and which is known even for a container that exited during its build. Converting it to dollars is left to the stats step.

@@ -47,7 +47,17 @@ export function createStubStages(): PipelineStages {
     },
     impact: { name: 'impact', run: () => Promise.resolve({}) },
     recipe: { name: 'recipe', run: () => Promise.resolve(STUB_RECIPE) },
-    environment: { name: 'environment', run: () => Promise.resolve({}) },
+    environment: {
+      name: 'environment',
+      run: (_input, ctx) =>
+        Promise.resolve({
+          project: `bdiff-${ctx.runId}`,
+          sides: {
+            base: { url: 'http://127.0.0.1:1', service: 'app-base' },
+            head: { url: 'http://127.0.0.1:2', service: 'app-head' },
+          },
+        }),
+    },
     probeUi: { name: 'probe-ui', run: () => Promise.resolve([]) },
     probeApi: { name: 'probe-api', run: () => Promise.resolve([]) },
     diff: { name: 'diff', run: () => Promise.resolve([]) },

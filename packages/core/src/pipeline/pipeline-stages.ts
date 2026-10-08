@@ -1,13 +1,8 @@
 import type { RunResult } from './run-result.js';
 import type { Stage } from './stage.js';
+import type { RunningEnvironment } from '../domain/environment.js';
 import type { Finding } from '../domain/finding.js';
-import type {
-  ApiCapture,
-  ImpactPlan,
-  Interpretation,
-  RunningEnvironment,
-  UiCapture,
-} from '../domain/placeholders.js';
+import type { ApiCapture, ImpactPlan, Interpretation, UiCapture } from '../domain/placeholders.js';
 import type { Recipe } from '../domain/recipe.js';
 import type { Target } from '../domain/target.js';
 import type { Workspace } from '../domain/workspace.js';

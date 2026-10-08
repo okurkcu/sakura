@@ -12,6 +12,20 @@ const interruptibleScript = path.join(repoRoot, 'packages/cli/test/interruptible
 const signal = new AbortController().signal;
 const exec = createExecaExec();
 
+/** Children still possibly running; stopped after each test so none outlives it. */
+const running = new Set<{ child: ReturnType<typeof spawn>; exitCode: Promise<number | null> }>();
+
+/** Interrupts every child still running (letting it clean up) and waits for it to exit. */
+async function stopChildren(): Promise<void> {
+  for (const entry of running) {
+    if (entry.child.exitCode === null && entry.child.signalCode === null) {
+      entry.child.kill('SIGINT');
+    }
+    await entry.exitCode;
+  }
+  running.clear();
+}
+
 interface Spawned {
   readonly exitCode: Promise<number | null>;
   readonly stdout: () => string;
@@ -40,6 +54,7 @@ function spawnTs(script: string, args: readonly string[], cacheDir = ''): Spawne
   child.stdout.on('data', (chunk: Buffer) => (stdout += chunk.toString()));
   child.stderr.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
   const exitCode = new Promise<number | null>((resolve) => child.once('exit', resolve));
+  running.add({ child, exitCode });
   return {
     exitCode,
     stdout: () => stdout,
@@ -92,7 +107,7 @@ describe('bdiff binary', () => {
     await writeFile(path.join(repo, 'README.md'), 'base\n');
     await writeFile(
       path.join(repo, 'package.json'),
-      JSON.stringify({ scripts: { build: 'next build' }, dependencies: { next: '16.4.0' } }),
+      JSON.stringify({ scripts: { build: 'vite build' }, dependencies: { vite: '6.0.0' } }),
     );
     await git(repo, 'add', '--all');
     await git(repo, 'commit', '--quiet', '-m', 'base');
@@ -103,14 +118,18 @@ describe('bdiff binary', () => {
   });
 
   afterEach(async () => {
+    await stopChildren();
     await rm(root, { recursive: true, force: true });
   });
 
-  it('runs a local repository through the real workspace stage and exits 0', async () => {
+  // The real stages need Docker from the environment stage on; the full successful run is covered
+  // by e2e/environment-stage.docker.test.ts. Without Docker, a repository that is not a Next.js app
+  // proves the binary wires the real workspace and recipe stages and records the failure.
+  it('runs the real workspace and recipe stages and records an unsupported repository (exit 1)', async () => {
     const run = spawnTs(mainScript, [...runArgs, '--out', out], cache);
 
-    expect(await run.exitCode, run.stderr()).toBe(0);
-    expect(run.stdout()).toContain('bdiff: success');
+    expect(await run.exitCode, run.stderr()).toBe(1);
+    expect(run.stdout()).toContain('failed at recipe (SETUP_UNSUPPORTED)');
     expect(await readdir(out)).toEqual(['results.csv', 'runs']);
     const [runId] = await readdir(path.join(out, 'runs'));
     expect(await readdir(path.join(out, 'runs', runId ?? ''))).toEqual(['run.json']);

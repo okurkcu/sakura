@@ -4,7 +4,9 @@ import path from 'node:path';
 import {
   BdiffError,
   createCostCalculator,
+  createEnvironmentStage,
   createExecaExec,
+  createFetchHttpClient,
   createRecipeStage,
   createLogger,
   createStubStages,
@@ -89,6 +91,11 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
       ...createStubStages(),
       workspace: createWorkspaceStage({ exec, fs: nodeFileSystem, cacheDir: cache, cwd }),
       recipe: createRecipeStage({ fs: nodeFileSystem, cacheDir: cache, cwd }),
+      environment: createEnvironmentStage({
+        exec,
+        fs: nodeFileSystem,
+        http: createFetchHttpClient(),
+      }),
     },
     createLogger: (level) => createLogger({ level }),
     pricingPath: env.BDIFF_PRICING ?? path.join(REPO_ROOT, 'config', 'pricing.json'),
