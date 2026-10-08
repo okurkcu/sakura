@@ -43,6 +43,17 @@
           "cacheWrite1hPerMTok": 4
         }
       ]
+    },
+    "claude-sonnet-5": {
+      "tiers": [
+        {
+          "inputPerMTok": 2,
+          "outputPerMTok": 10,
+          "cacheReadPerMTok": 0.2,
+          "cacheWrite5mPerMTok": 2.5,
+          "cacheWrite1hPerMTok": 4
+        }
+      ]
     }
   }
 }

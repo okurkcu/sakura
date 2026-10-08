@@ -1,0 +1,8 @@
+{
+  "tiers": {
+    "fast": { "model": "claude-haiku-5-5", "effort": "medium" },
+    "smart": { "model": "claude-sonnet-5-5", "effort": "medium", "fallbacks": "default" }
+  },
+  "requestTimeoutMs": 120000,
+  "maxRetries": 3
+}
