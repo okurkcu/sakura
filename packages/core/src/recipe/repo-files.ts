@@ -71,10 +71,19 @@ export function createRepoFiles(
 }
 
 /** Lists a checkout and loads the content of every relevant file (`bun.lockb` is listed, not read). */
-export async function loadRepoFiles(fs: FileSystem, root: string): Promise<RepoFiles> {
+export function loadRepoFiles(fs: FileSystem, root: string): Promise<RepoFiles> {
+  return loadFilesWhere(fs, root, isRelevantFile);
+}
+
+/** Lists a checkout (skipping dependencies and build output) and loads the files `read` selects. */
+export async function loadFilesWhere(
+  fs: FileSystem,
+  root: string,
+  read: (file: string) => boolean,
+): Promise<RepoFiles> {
   const list = await fs.listFiles(root, { ignoreDirs: IGNORED_DIRS });
   const contents: Record<string, string> = {};
-  for (const file of list.filter(isRelevantFile)) {
+  for (const file of list.filter(read)) {
     contents[file] = await fs.readFile(path.join(root, file));
   }
   return createRepoFiles(contents, list);

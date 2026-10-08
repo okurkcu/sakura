@@ -45,7 +45,18 @@ export function createStubStages(): PipelineStages {
         });
       },
     },
-    impact: { name: 'impact', run: () => Promise.resolve({}) },
+    impact: {
+      name: 'impact',
+      run: () =>
+        Promise.resolve({
+          pages: [],
+          endpoints: [],
+          notProbed: [],
+          confidence: 'high',
+          unmappedFiles: [],
+          notes: [],
+        }),
+    },
     recipe: { name: 'recipe', run: () => Promise.resolve(STUB_RECIPE) },
     environment: {
       name: 'environment',
