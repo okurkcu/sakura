@@ -50,6 +50,6 @@ export interface StageContext {
   recordLlmUsage(purpose: string, usage: TokenUsage): LlmUsage;
   /** Adds to the run's probe and diff counts. */
   addCounts(counts: Partial<RunCounts>): void;
-  /** Records the container CPU time of one side. */
+  /** Records how long the containers of one side ran, in wall-clock seconds. */
   setComputeSeconds(side: Side, seconds: number): void;
 }
