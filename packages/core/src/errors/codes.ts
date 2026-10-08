@@ -14,6 +14,7 @@ export const ErrorCodeSchema = z.enum([
   'BUDGET_EXCEEDED',
   'EXEC_TIMEOUT',
   'EXEC_FAILED',
+  'GIT_FAILED',
   'FS_FAILED',
   'ABORTED',
   'INVALID_INPUT',
