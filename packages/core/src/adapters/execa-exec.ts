@@ -6,6 +6,7 @@ import { execFailedError, execTimeoutError } from './exec.js';
 import type { Exec, ExecOptions, ExecResult } from './exec.js';
 import { SECRET_ENV_VARS } from './secrets.js';
 import { abortError, throwIfAborted } from '../errors/abort.js';
+import { BdiffError } from '../errors/bdiff-error.js';
 
 /** Time a process group gets to exit after SIGTERM before it is SIGKILLed. */
 const KILL_GRACE_MS = 2_000;
@@ -46,14 +47,22 @@ async function run(
   });
 
   const { pid } = subprocess;
-  let graceTimer: NodeJS.Timeout | undefined;
-  const stop = () => {
-    if (pid === undefined) {
-      return;
+  /** Unexpected errors from signalling the process group; reported once the command ends. */
+  const killErrors: unknown[] = [];
+  const kill = (signal: NodeJS.Signals) => {
+    if (pid !== undefined) {
+      const error = tryKillProcessGroup(pid, signal);
+      if (error !== undefined) {
+        killErrors.push(error);
+      }
     }
-    killProcessGroup(pid, 'SIGTERM');
+  };
+  let graceTimer: NodeJS.Timeout | undefined;
+  // Runs inside an event dispatch: it must never throw, or the whole process would crash.
+  const stop = () => {
+    kill('SIGTERM');
     graceTimer = setTimeout(() => {
-      killProcessGroup(pid, 'SIGKILL');
+      kill('SIGKILL');
     }, KILL_GRACE_MS);
   };
 
@@ -64,7 +73,17 @@ async function run(
 
   try {
     const result = await subprocess;
+    if (stopSignal.aborted) {
+      // The direct child is gone; make sure nothing it spawned outlives it.
+      kill('SIGKILL');
+    }
 
+    if (killErrors.length > 0) {
+      throw new BdiffError('EXEC_FAILED', `Could not stop the processes of: ${cmd}`, {
+        cause: killErrors[0],
+        details: { cmd, args: [...args] },
+      });
+    }
     if (options.signal.aborted) {
       throw abortError(options.signal);
     }
@@ -85,10 +104,6 @@ async function run(
     clearTimeout(graceTimer);
     if (pid !== undefined) {
       liveProcessGroups.delete(pid);
-      if (stopSignal.aborted) {
-        // The direct child is gone; make sure nothing it spawned outlives it.
-        killProcessGroup(pid, 'SIGKILL');
-      }
     }
   }
 }
@@ -107,19 +122,24 @@ function signalNumber(signal: string | undefined): number {
   return (signal === undefined ? undefined : signals[signal]) ?? 0;
 }
 
-/** Signals every process in the group led by `pid`. A group that is already gone is fine. */
-function killProcessGroup(pid: number, signal: NodeJS.Signals): void {
+/**
+ * Signals every process in the group led by `pid`. Returns an unexpected error instead of throwing.
+ * A group that is already gone is fine: `ESRCH`, or `EPERM`, which macOS returns for a group whose
+ * members have all exited but are not reaped yet. Our own children never refuse a signal otherwise.
+ */
+export function tryKillProcessGroup(pid: number, signal: NodeJS.Signals): unknown {
   try {
     process.kill(-pid, signal);
+    return undefined;
   } catch (error) {
-    if (!isNoSuchProcess(error)) {
-      throw error;
-    }
+    return isGroupGone(error) ? undefined : error;
   }
 }
 
-function isNoSuchProcess(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'ESRCH';
+function isGroupGone(error: unknown): boolean {
+  return (
+    error instanceof Error && 'code' in error && (error.code === 'ESRCH' || error.code === 'EPERM')
+  );
 }
 
 function installExitHook(): void {
@@ -129,7 +149,8 @@ function installExitHook(): void {
   exitHookInstalled = true;
   process.once('exit', () => {
     for (const pid of liveProcessGroups) {
-      killProcessGroup(pid, 'SIGKILL');
+      // The process is exiting: there is nobody left to report a failed kill to.
+      tryKillProcessGroup(pid, 'SIGKILL');
     }
   });
 }
