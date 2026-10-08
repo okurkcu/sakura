@@ -25,13 +25,13 @@ Flags take precedence over environment variables, which take precedence over def
 
 Other environment variables:
 
-| Env                  | Meaning                                                                                                                                                     |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BDIFF_TOOL_VERSION` | Overrides the tool version recorded in `run.json` (otherwise `GITHUB_SHA`, then the git SHA of the bdiff checkout, `-dirty` if it has uncommitted changes). |
-| `BDIFF_PRICING`      | Path of the pricing table; default `config/pricing.json` in the bdiff checkout.                                                                             |
-| `BDIFF_CACHE_DIR`    | Cache of bare repository clones, reused across runs. Default `$XDG_CACHE_HOME/bdiff`, else `~/.cache/bdiff`. Safe to delete.                                |
-| `ANTHROPIC_API_KEY`  | Claude API key for the LLM stages. Never logged or recorded.                                                                                                |
-| `GITHUB_TOKEN`       | Optional GitHub token for fetching PR text. Never logged or recorded.                                                                                       |
+| Env                  | Meaning                                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BDIFF_TOOL_VERSION` | Overrides the tool version recorded in `run.json` (otherwise `GITHUB_SHA`, then the git SHA of the bdiff checkout, `-dirty` if it has uncommitted changes).               |
+| `BDIFF_PRICING`      | Path of the pricing table; default `config/pricing.json` in the bdiff checkout.                                                                                           |
+| `BDIFF_CACHE_DIR`    | Cache of bare repository clones (`repos/`) and detected recipes (`recipes/`), reused across runs. Default `$XDG_CACHE_HOME/bdiff`, else `~/.cache/bdiff`. Safe to delete. |
+| `ANTHROPIC_API_KEY`  | Claude API key for the LLM stages. Never logged or recorded.                                                                                                              |
+| `GITHUB_TOKEN`       | Optional GitHub token for fetching PR text. Never logged or recorded.                                                                                                     |
 
 ## Output
 
