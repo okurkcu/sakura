@@ -6,6 +6,7 @@ import type { LlmUsage, RunCounts, RunRecord, RunTotals, TokenUsage } from './ru
 import { createStageTimer } from './stage-timer.js';
 import type { StageTimer } from './stage-timer.js';
 import type { Clock } from '../adapters/clock.js';
+import type { ApiRequest } from '../domain/api-probe.js';
 import type { Side, StageName } from '../domain/stage.js';
 import type { Target } from '../domain/target.js';
 import { TargetSchema } from '../domain/target.js';
@@ -49,6 +50,8 @@ export interface RunRecorder {
   setComputeSeconds(side: Side, seconds: number): void;
   /** Adds to the probe and diff counts. */
   addCounts(counts: Partial<RunCounts>): void;
+  /** Records the API probe's request set, generated requests included. */
+  setApiRequests(requests: readonly ApiRequest[]): void;
   /**
    * The record as it would be if the run ended now with `outcome`, without ending it. Used to
    * render the report before the final record exists.
@@ -87,6 +90,7 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
     noiseDiffs: 0,
     findings: 0,
   };
+  let apiRequests: ApiRequest[] = [];
   let finished = false;
 
   const build = (outcome: RunOutcome): RunRecord => {
@@ -104,6 +108,7 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
       llmUsage: [...llmUsage],
       totals: computeTotals(llmUsage, computeSeconds),
       counts: { ...counts },
+      apiRequests: [...apiRequests],
     };
     switch (outcome.status) {
       case 'success':
@@ -137,6 +142,9 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
     spentUsd: () => sumUsd(llmUsage.map((entry) => entry.costUsd)),
     setComputeSeconds: (side, seconds) => {
       computeSeconds[side] = seconds;
+    },
+    setApiRequests: (requests) => {
+      apiRequests = [...requests];
     },
     addCounts: (partial) => {
       for (const key of RunCountsSchema.keyof().options) {

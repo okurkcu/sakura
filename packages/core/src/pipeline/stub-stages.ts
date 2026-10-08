@@ -70,7 +70,10 @@ export function createStubStages(): PipelineStages {
         }),
     },
     probeUi: { name: 'probe-ui', run: () => Promise.resolve([]) },
-    probeApi: { name: 'probe-api', run: () => Promise.resolve([]) },
+    probeApi: {
+      name: 'probe-api',
+      run: () => Promise.resolve({ requests: [], captures: [], notProbed: [] }),
+    },
     diff: { name: 'diff', run: () => Promise.resolve([]) },
     interpret: { name: 'interpret', run: () => Promise.resolve({}) },
     report: { name: 'report', run: () => Promise.resolve() },

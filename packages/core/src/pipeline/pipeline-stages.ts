@@ -1,9 +1,10 @@
 import type { RunResult } from './run-result.js';
 import type { Stage } from './stage.js';
+import type { ApiProbe } from '../domain/api-probe.js';
 import type { RunningEnvironment } from '../domain/environment.js';
 import type { Finding } from '../domain/finding.js';
 import type { ImpactPlan } from '../domain/impact.js';
-import type { ApiCapture, Interpretation } from '../domain/placeholders.js';
+import type { Interpretation } from '../domain/placeholders.js';
 import type { Recipe } from '../domain/recipe.js';
 import type { Target } from '../domain/target.js';
 import type { UiCapture } from '../domain/ui-capture.js';
@@ -19,8 +20,11 @@ export interface PipelineStages {
   readonly recipe: Stage<{ workspace: Workspace }, Recipe>;
   readonly environment: Stage<{ workspace: Workspace; recipe: Recipe }, RunningEnvironment>;
   readonly probeUi: Stage<{ environment: RunningEnvironment; impact: ImpactPlan }, UiCapture[]>;
-  readonly probeApi: Stage<{ environment: RunningEnvironment; impact: ImpactPlan }, ApiCapture[]>;
-  readonly diff: Stage<{ impact: ImpactPlan; ui: UiCapture[]; api: ApiCapture[] }, Finding[]>;
+  readonly probeApi: Stage<
+    { workspace: Workspace; recipe: Recipe; environment: RunningEnvironment; impact: ImpactPlan },
+    ApiProbe
+  >;
+  readonly diff: Stage<{ impact: ImpactPlan; ui: UiCapture[]; api: ApiProbe }, Finding[]>;
   readonly interpret: Stage<
     { target: Target; workspace: Workspace; impact: ImpactPlan; findings: Finding[] },
     Interpretation

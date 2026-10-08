@@ -174,7 +174,13 @@ export async function runPipeline(
         recipe,
       }));
       const ui = (outputs.ui = await runStage(stages.probeUi, { environment, impact }));
-      const api = (outputs.api = await runStage(stages.probeApi, { environment, impact }));
+      const api = (outputs.api = await runStage(stages.probeApi, {
+        workspace,
+        recipe,
+        environment,
+        impact,
+      }));
+      recorder.setApiRequests(api.requests);
       const findings = (outputs.findings = await runStage(stages.diff, { impact, ui, api }));
       outputs.interpretation = await runStage(stages.interpret, {
         target,

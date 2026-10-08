@@ -141,6 +141,39 @@ describe('runPipeline', () => {
     expect(store.written).toHaveLength(1);
   });
 
+  it('gives the API probe the workspace and recipe, and records its request set in the run record', async () => {
+    const clock = new FakeClock();
+    const inputs: unknown[] = [];
+    const request = {
+      key: 'POST /api/feedback',
+      source: 'generated',
+      method: 'POST',
+      path: '/api/feedback',
+      headers: {},
+      body: { contentType: 'application/json', text: '{"rating":5}' },
+      description: 'Five-star feedback',
+      endpoint: 'POST /api/feedback',
+    } as const;
+    const { stages } = recordingStages(clock, {
+      probeApi: (input) => {
+        inputs.push(input);
+        return Promise.resolve({ requests: [request], captures: [], notProbed: [] });
+      },
+    });
+    const { deps: d, store } = deps(clock);
+
+    const { result } = await runPipeline(TEST_TARGET, stages, d);
+
+    expect(inputs[0]).toMatchObject({
+      workspace: expect.anything() as unknown,
+      recipe: expect.anything() as unknown,
+      environment: expect.anything() as unknown,
+      impact: expect.anything() as unknown,
+    });
+    expect(result.record.apiRequests).toEqual([request]);
+    expect(store.written[0]?.apiRequests).toEqual([request]);
+  });
+
   it('stops at the first failing stage, runs cleanup, reports and records the failure', async () => {
     const clock = new FakeClock();
     const cleaned: string[] = [];
