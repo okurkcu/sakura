@@ -10,16 +10,16 @@ From a build, the same command is `node packages/cli/dist/main.js run …` (pack
 
 Compares the behavior of `--base` and `--head` of a repository and writes a run record.
 
-| Flag                  | Env                 | Default  | Meaning                                                                     |
-| --------------------- | ------------------- | -------- | --------------------------------------------------------------------------- |
-| `--repo <url\|path>`  |                     | required | Repository: HTTPS URL or local path.                                        |
-| `--base <ref>`        |                     | required | Base ref (branch, tag or SHA).                                              |
-| `--head <ref>`        |                     | required | Head ref.                                                                   |
-| `--pr <number>`       |                     |          | Pull request number, positive integer. Recorded, and used to fetch PR text. |
-| `--out <dir>`         | `BDIFF_OUT`         | `.bdiff` | Output root, relative to the working directory.                             |
-| `--timeout <minutes>` | `BDIFF_TIMEOUT_MIN` | `20`     | Limit for the whole run, `0 < minutes ≤ 1440`. Decimals allowed.            |
-| `--budget <usd>`      | `BDIFF_BUDGET_USD`  | `1`      | LLM spend cap for the run, `0 ≤ usd ≤ 100`. `0` allows no LLM calls.        |
-| `--log-level <level>` | `BDIFF_LOG_LEVEL`   | `info`   | `debug`, `info`, `warn` or `error`.                                         |
+| Flag                  | Env                 | Default  | Meaning                                                                              |
+| --------------------- | ------------------- | -------- | ------------------------------------------------------------------------------------ |
+| `--repo <url\|path>`  |                     | required | Repository: HTTPS URL or local path. Other transports (ssh, `file://`) are rejected. |
+| `--base <ref>`        |                     | required | Base ref (branch, tag or SHA).                                                       |
+| `--head <ref>`        |                     | required | Head ref. With `--pr`, falls back to GitHub's `pull/<n>/head` (fork PRs).            |
+| `--pr <number>`       |                     |          | Pull request number, positive integer. Recorded, and used to fetch PR text.          |
+| `--out <dir>`         | `BDIFF_OUT`         | `.bdiff` | Output root, relative to the working directory.                                      |
+| `--timeout <minutes>` | `BDIFF_TIMEOUT_MIN` | `20`     | Limit for the whole run, `0 < minutes ≤ 1440`. Decimals allowed.                     |
+| `--budget <usd>`      | `BDIFF_BUDGET_USD`  | `1`      | LLM spend cap for the run, `0 ≤ usd ≤ 100`. `0` allows no LLM calls.                 |
+| `--log-level <level>` | `BDIFF_LOG_LEVEL`   | `info`   | `debug`, `info`, `warn` or `error`.                                                  |
 
 Flags take precedence over environment variables, which take precedence over defaults. Refs and the repository may not start with `-`. Every invalid value is reported at once.
 
@@ -29,6 +29,7 @@ Other environment variables:
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BDIFF_TOOL_VERSION` | Overrides the tool version recorded in `run.json` (otherwise `GITHUB_SHA`, then the git SHA of the bdiff checkout, `-dirty` if it has uncommitted changes). |
 | `BDIFF_PRICING`      | Path of the pricing table; default `config/pricing.json` in the bdiff checkout.                                                                             |
+| `BDIFF_CACHE_DIR`    | Cache of bare repository clones, reused across runs. Default `$XDG_CACHE_HOME/bdiff`, else `~/.cache/bdiff`. Safe to delete.                                |
 | `ANTHROPIC_API_KEY`  | Claude API key for the LLM stages. Never logged or recorded.                                                                                                |
 | `GITHUB_TOKEN`       | Optional GitHub token for fetching PR text. Never logged or recorded.                                                                                       |
 
