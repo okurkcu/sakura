@@ -151,6 +151,16 @@ All paths come from the typed `ArtifactPaths` helper — never build path string
 - **Lint suppressions** need a reason: `// eslint-disable-next-line <rule> -- <why>`. Unused or undescribed directives fail lint.
 - **Dependency build scripts** are denied by default (`allowBuilds` in `pnpm-workspace.yaml`). Allow one only with a reason.
 
+## Core building blocks
+
+- **Schemas:** a zod schema `FooSchema` plus `type Foo = z.infer<typeof FooSchema>`; never a hand-written duplicate type. Optional fields use `.exactOptional()` to match `exactOptionalPropertyTypes`. Values written to records or sent to an LLM are `JsonValue`.
+- **Placeholders:** `domain/placeholders.ts` holds contracts owned by later tasks (`TODO(SKR-n)`). The owning task replaces the placeholder with the real schema.
+- **Errors:** `new BdiffError(code, message, { stage?, cause?, details? })`. Codes live in `errors/codes.ts`; add codes, never rename them (they're stored in records and the CSV). `details` must be JSON and must not contain secrets. Adapters leave `stage` empty; `toFailureRecord(err, stage)` fills it in. Abort reasons become errors via `abortError(signal)` / `throwIfAborted(signal)`.
+- **Exec:** every host command goes through the `Exec` adapter with an args array, a `timeoutMs` and an abort `signal` (both required). Commands run in their own process group, so timeout/abort kills the whole tree (POSIX only). `ANTHROPIC_API_KEY` and `GITHUB_TOKEN` are stripped from child environments; pass one explicitly via `env` only when a command needs it, and never put secrets in `args`. A non-zero exit code is returned, not thrown.
+- **Logging:** depend on the `Logger` interface; scope with `logger.child({ stage })`. Secret-looking keys (`apiKey`, `token`, `authorization`, the secret env vars, …) are redacted up to two levels deep, but don't rely on that: don't log secrets.
+- **Time:** inject `Clock` (`now`, `monotonicMs`, `sleep`) instead of calling `Date.now()`, `performance.now()` or `setTimeout` in logic.
+- **Test fakes** come from `@bdiff/core/testing` (`FakeExec`, `FakeClock`, `createTestLogger`). `FakeExec` throws on unscripted calls. Production code never imports from `testing/`.
+
 ## Engineering standards (non-negotiable)
 
 **Code**
