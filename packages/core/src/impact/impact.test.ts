@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Route } from '../domain/impact.js';
-import { createRepoFiles } from '../recipe/repo-files.js';
-
 import { affectedRoutes } from './impact-mapping.js';
 import { buildImpactPlan, DEFAULT_IMPACT_LIMITS } from './impact-plan.js';
 import { discoverRoutes, exportedMethods } from './route-discovery.js';
 import { classifyChange, skipReason } from './skip-rules.js';
 import { readImportAliases } from './tsconfig-aliases.js';
+import type { Route } from '../domain/impact.js';
+import { createRepoFiles } from '../recipe/repo-files.js';
 
 const page = (path: string, file: string, dynamic = false): Route => ({
   path,
@@ -301,6 +300,19 @@ describe('readImportAliases', () => {
     expect(aliases.notes.join('\n')).toMatch(
       /skipped "extends": "@tsconfig\/next[\s\S]*unsupported path alias "x\/\*\/y"/,
     );
+  });
+
+  it('resolves inherited paths without a baseUrl from the config that declares them', () => {
+    const files = createRepoFiles({
+      'tsconfig.json': '{ "compilerOptions": { "paths": { "@ui/*": ["./packages/ui/src/*"] } } }',
+      'apps/web/tsconfig.json': '{ "extends": "../../tsconfig.json" }',
+    });
+
+    expect(readImportAliases(files, 'apps/web', '/repo')).toEqual({
+      alias: { '@ui': '/repo/packages/ui/src' },
+      moduleRoots: [],
+      notes: [],
+    });
   });
 
   it('uses jsconfig.json and resolves relative to it without a baseUrl', () => {

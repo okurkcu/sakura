@@ -37,29 +37,33 @@ export function readImportAliases(
     return { alias: {}, moduleRoots: [], notes };
   }
   const options = mergedCompilerOptions(files, configFile, notes, 0);
-  const configDir = path.posix.dirname(configFile);
-  const baseDir = path.posix.join(configDir, options.baseUrl ?? '.');
+  // Without a baseUrl, paths are relative to the config that declares them (maybe a parent).
+  const pathsDir = options.baseDir ?? options.paths?.dir ?? path.posix.dirname(configFile);
   const alias: Record<string, string> = {};
-  for (const [pattern, targets] of Object.entries(options.paths ?? {})) {
+  for (const [pattern, targets] of Object.entries(options.paths?.entries ?? {})) {
     const target = targets[0];
     if (target === undefined) {
       continue;
     }
     if (pattern.endsWith('/*') && target.endsWith('/*')) {
-      alias[pattern.slice(0, -2)] = path.join(absoluteRoot, baseDir, target.slice(0, -2));
+      alias[pattern.slice(0, -2)] = path.join(absoluteRoot, pathsDir, target.slice(0, -2));
     } else if (!pattern.includes('*') && !target.includes('*')) {
-      alias[`${pattern}$`] = path.join(absoluteRoot, baseDir, target);
+      alias[`${pattern}$`] = path.join(absoluteRoot, pathsDir, target);
     } else {
       notes.push(`unsupported path alias "${pattern}" in ${configFile}`);
     }
   }
-  const moduleRoots = options.baseUrl === undefined ? [] : [path.join(absoluteRoot, baseDir)];
+  const moduleRoots =
+    options.baseDir === undefined ? [] : [path.join(absoluteRoot, options.baseDir)];
   return { alias, moduleRoots, notes };
 }
 
+/** Path options merged across `extends`, with directories relative to the repository root. */
 interface PathOptions {
-  baseUrl?: string;
-  paths?: Record<string, string[]>;
+  /** The `baseUrl` directory. */
+  baseDir?: string;
+  /** `paths`, and the directory of the config that declares them. */
+  paths?: { readonly entries: Record<string, string[]>; readonly dir: string };
 }
 
 function mergedCompilerOptions(
@@ -98,26 +102,16 @@ function mergedCompilerOptions(
       notes.push(`"extends": "${parent}" in ${configFile} not found`);
       continue;
     }
-    const parentOptions = mergedCompilerOptions(files, parentFile, notes, depth + 1);
-    // A parent's baseUrl is relative to the parent's directory; rebase it onto this config's directory.
-    const rebasedBaseUrl =
-      parentOptions.baseUrl === undefined
-        ? undefined
-        : path.posix.relative(
-            path.posix.dirname(configFile),
-            path.posix.join(path.posix.dirname(parentFile), parentOptions.baseUrl),
-          ) || '.';
-    inherited = {
-      ...inherited,
-      ...parentOptions,
-      ...(rebasedBaseUrl === undefined ? {} : { baseUrl: rebasedBaseUrl }),
-    };
+    inherited = { ...inherited, ...mergedCompilerOptions(files, parentFile, notes, depth + 1) };
   }
   const own = isRecord(config.compilerOptions) ? config.compilerOptions : {};
+  const configDir = path.posix.dirname(configFile);
   return {
     ...inherited,
-    ...(typeof own.baseUrl === 'string' ? { baseUrl: own.baseUrl } : {}),
-    ...(isRecord(own.paths) ? { paths: stringArrays(own.paths) } : {}),
+    ...(typeof own.baseUrl === 'string'
+      ? { baseDir: path.posix.join(configDir, own.baseUrl) }
+      : {}),
+    ...(isRecord(own.paths) ? { paths: { entries: stringArrays(own.paths), dir: configDir } } : {}),
   };
 }
 

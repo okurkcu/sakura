@@ -4,9 +4,8 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { nodeFileSystem } from '../adapters/file-system.js';
-
 import { createDependencyCruiserGraph, toGraph } from './import-graph.js';
+import { nodeFileSystem } from '../adapters/file-system.js';
 
 describe('createDependencyCruiserGraph (real dependency-cruiser)', () => {
   let root: string;
