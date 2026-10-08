@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - fixtures
+  - e2e
 
 allowBuilds:
   esbuild: false

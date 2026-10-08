@@ -1,3 +1,4 @@
+import { homedir } from 'node:os';
 import path from 'node:path';
 
 import {
@@ -6,6 +7,7 @@ import {
   createExecaExec,
   createLogger,
   createStubStages,
+  createWorkspaceStage,
   DEFAULT_BUDGET_USD,
   loadPricingTable,
   nodeFileSystem,
@@ -72,18 +74,30 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '../../..');
 
 /**
  * The real adapters. This is the composition root: the only place that chooses implementations.
- * Every stage is still a stub; each stage task swaps in its real implementation here.
+ * Stages not implemented yet are stubs; each stage task swaps in its real implementation here.
  */
 export function createDefaultCliDeps(env: Readonly<Record<string, string | undefined>>): CliDeps {
+  const exec = createExecaExec();
+  const cwd = process.cwd();
   return {
     clock: systemClock,
     fs: nodeFileSystem,
-    exec: createExecaExec(),
-    stages: createStubStages(),
+    exec,
+    stages: {
+      ...createStubStages(),
+      workspace: createWorkspaceStage({ exec, fs: nodeFileSystem, cacheDir: cacheDir(env), cwd }),
+    },
     createLogger: (level) => createLogger({ level }),
     pricingPath: env.BDIFF_PRICING ?? path.join(REPO_ROOT, 'config', 'pricing.json'),
-    cwd: process.cwd(),
+    cwd,
   };
+}
+
+/** `BDIFF_CACHE_DIR`, else `$XDG_CACHE_HOME/bdiff`, else `~/.cache/bdiff`. */
+export function cacheDir(env: Readonly<Record<string, string | undefined>>): string {
+  return (
+    env.BDIFF_CACHE_DIR ?? path.join(env.XDG_CACHE_HOME ?? path.join(homedir(), '.cache'), 'bdiff')
+  );
 }
 
 /**

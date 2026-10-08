@@ -24,6 +24,8 @@ describe('createArtifactPaths', () => {
       reportHtml: `${runDir}/report/index.html`,
     });
     expect(paths.log('head')).toBe(`${runDir}/logs/head.log`);
+    expect(paths.worktree('base')).toBe(`${runDir}/worktrees/base`);
+    expect(paths.worktree('head')).toBe(`${runDir}/worktrees/head`);
   });
 
   it('places screenshots and API responses per probe run', () => {

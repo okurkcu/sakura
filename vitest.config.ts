@@ -30,6 +30,15 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: 'e2e',
+          include: ['e2e/*.test.ts'],
+          exclude: ['**/*.docker.test.ts'],
+          testTimeout: 60_000,
+        },
+      },
+      {
+        extends: true,
+        test: {
           name: 'tooling',
           include: ['tests/**/*.test.ts'],
           testTimeout: 60_000,
