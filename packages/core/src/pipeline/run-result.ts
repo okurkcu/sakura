@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { RunningEnvironmentSchema } from '../domain/environment.js';
 import { FindingSchema } from '../domain/finding.js';
 import { ImpactPlanSchema } from '../domain/impact.js';
-import { ApiCaptureSchema, InterpretationSchema, UiCaptureSchema } from '../domain/placeholders.js';
+import { ApiCaptureSchema, InterpretationSchema } from '../domain/placeholders.js';
 import { RecipeSchema } from '../domain/recipe.js';
+import { UiCaptureSchema } from '../domain/ui-capture.js';
 import { WorkspaceSchema } from '../domain/workspace.js';
 import { RunRecordSchema } from '../metrics/run-record.js';
 

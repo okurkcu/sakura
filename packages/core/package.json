@@ -21,6 +21,7 @@
     "dependency-cruiser": "^18.5.0",
     "execa": "^10.1.0",
     "pino": "^10.4.0",
+    "playwright": "1.63.0",
     "semver": "^7.8.5",
     "typescript": "~6.0.3",
     "yaml": "^2.9.1",

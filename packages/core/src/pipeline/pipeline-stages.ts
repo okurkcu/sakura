@@ -3,9 +3,10 @@ import type { Stage } from './stage.js';
 import type { RunningEnvironment } from '../domain/environment.js';
 import type { Finding } from '../domain/finding.js';
 import type { ImpactPlan } from '../domain/impact.js';
-import type { ApiCapture, Interpretation, UiCapture } from '../domain/placeholders.js';
+import type { ApiCapture, Interpretation } from '../domain/placeholders.js';
 import type { Recipe } from '../domain/recipe.js';
 import type { Target } from '../domain/target.js';
+import type { UiCapture } from '../domain/ui-capture.js';
 import type { Workspace } from '../domain/workspace.js';
 
 /**

@@ -10,19 +10,20 @@ Work is tracked in Jira: project **SKR**, epic **SKR-14**, tasks SKR-15 → SKR-
 
 ## Commands
 
-| Command              | What it does                                                         |
-| -------------------- | -------------------------------------------------------------------- |
-| `pnpm install`       | Install dependencies (Node ≥ 22.12, pnpm via corepack).              |
-| `pnpm check`         | **lint + typecheck + test. Must be green before a task is done.**    |
-| `pnpm lint`          | ESLint (zero warnings allowed) and Prettier check.                   |
-| `pnpm typecheck`     | `tsc` over root tooling files and every package, tests included.     |
-| `pnpm test`          | Vitest, all projects. `pnpm vitest run --project core` for just one. |
-| `pnpm test:coverage` | Vitest with v8 coverage.                                             |
-| `pnpm test:docker`   | `*.docker.test.ts` integration tests; needs a running Docker daemon. |
-| `pnpm bdiff run …`   | Runs the CLI from source; flags and exit codes in `docs/cli.md`.     |
-| `pnpm fixture:build` | Builds the fixture git repo in a temp dir and prints its path.       |
-| `pnpm build`         | `tsc -b tsconfig.build.json` (project references) into `dist/`.      |
-| `pnpm format`        | Prettier write.                                                      |
+| Command                | What it does                                                          |
+| ---------------------- | --------------------------------------------------------------------- |
+| `pnpm install`         | Install dependencies (Node ≥ 22.12, pnpm via corepack).               |
+| `pnpm check`           | **lint + typecheck + test. Must be green before a task is done.**     |
+| `pnpm lint`            | ESLint (zero warnings allowed) and Prettier check.                    |
+| `pnpm typecheck`       | `tsc` over root tooling files and every package, tests included.      |
+| `pnpm test`            | Vitest, all projects. `pnpm vitest run --project core` for just one.  |
+| `pnpm test:coverage`   | Vitest with v8 coverage.                                              |
+| `pnpm test:docker`     | `*.docker.test.ts` and `*.browser.test.ts`; need Docker and Chromium. |
+| `pnpm browser:install` | Installs the Chromium (Playwright headless shell) the UI probe uses.  |
+| `pnpm bdiff run …`     | Runs the CLI from source; flags and exit codes in `docs/cli.md`.      |
+| `pnpm fixture:build`   | Builds the fixture git repo in a temp dir and prints its path.        |
+| `pnpm build`           | `tsc -b tsconfig.build.json` (project references) into `dist/`.       |
+| `pnpm format`          | Prettier write.                                                       |
 
 ## Architecture
 
@@ -165,6 +166,8 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 
 **Impact.** The impact stage (`packages/core/src/impact`) decides which pages and API endpoints to probe, before any container exists. Skip rules come first (`skip-rules.ts`): a PR that only touches docs, tests, CI config or lockfiles is skipped with `<kind>-only` (`non-runtime-only` for a mix); `.md`/`.mdx` and test-named folders inside `app/` or `pages/` are runtime code. Routes are discovered from file names alone (App Router `page`/`route` files, Pages Router `pages/`), and route handlers' HTTP methods from their exports. The head's import graph comes from dependency-cruiser over a static parse: no repository code, config or plugin is loaded, packages are not followed, and tsconfig/jsconfig `paths` and `baseUrl` are read by `readImportAliases` (relative `extends` only). Changed files are walked backwards to routes; an App Router `layout`/`template` covers every page below it, `pages/_app` and `_document` every Pages Router page. Dynamic routes are listed as not probed (`dynamic-params`), and at most 10 pages and 10 endpoints are probed (the rest is `cap`). When no changed file reaches a route, `/` plus three top-level static pages are probed with `low` confidence; some unmapped files mean `medium`.
 
+**UI probe.** The probe-ui stage (`packages/core/src/probes/ui`) captures every page of the impact plan on `baseA`, `baseB` (the same base app again, to tell noise from change), then `head`, one page at a time in one headless Chromium behind the `UiBrowserLauncher` adapter. **The Chromium sandbox is never turned off** (on Ubuntu 23.10+ it needs unprivileged user namespaces; the CI docker job allows them, see `docs/cli.md`). Each capture uses a fresh context: 1280×800 at scale 1, `en-US`, UTC, reduced motion, light scheme, service workers and downloads blocked, `Date` starting at `CAPTURE_TIME` (an init script; Playwright's `page.clock` is not used because it turns exceptions in timers into console messages), and CSS that freezes animations. **Only the page's own origin is reachable**: other requests and WebSockets are blocked and listed in `blockedRequests`, because pages come from untrusted repositories. A page is read once the network is quiet (no request waiting for its response for 500 ms; open or unread bodies don't count), fonts are loaded and a short pause passed; a page that never goes quiet is captured anyway with `settled: false`. A page that fails or times out (30 s per page) becomes a capture with `error`, never a stage failure. Captures drop the app's origin from URLs, messages and text, since base and head run on different ports.
+
 **LLM calls.** Every call goes through `LlmClient.complete(request, ctx)` (`packages/core/src/llm`); stages pass their `StageContext` as `ctx`. The client checks the budget before every request (retries included), records every attempt's usage, sends the zod schema as the structured output format, validates the answer with zod and retries once with the validation problem before `LLM_INVALID_OUTPUT`. Refusals become `LLM_REFUSED`; branch on errors, never read content of a refused response. Models, effort and server-side fallback per tier live in `config/llm.json`; every model a tier or its fallback can use must be in `config/pricing.json`. Never send `temperature`, `top_p`, `top_k` or an assistant prefill (current models reject them). Prompts live in `packages/core/src/llm/prompts/*.ts` as typed functions; keep run-specific data out of `system` so it stays cacheable. Tests use `FakeLlmClient` from `@bdiff/core/testing`, or `createAnthropicLlmClient({ fetch })` with a fake transport: never the real API.
 
 **Metrics.** A run's numbers are accumulated by a `RunRecorder` (stage timings via its `timer`, LLM usage via `recordLlmUsage`, compute seconds, counts) and persisted by `MetricsStore` (`run.json` atomically, one `results.csv` row). LLM cost comes only from `config/pricing.json` through `CostCalculator`; never hardcode a price. `run.json` fields, CSV columns and the pricing rules are documented in `docs/metrics.md`; a test fails if the documented CSV columns drift from the code.
@@ -178,6 +181,7 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 - **Tests** live next to the code as `src/**/*.test.ts`. Repo-level tooling tests go in `tests/`.
 - **Stage tests** run a single stage outside the pipeline with `createTestStageContext()` from `@bdiff/core/testing` (fake clock, test logger, recorded cleanup hooks). Tests against the fixture repository live in `e2e/`.
 - **Docker tests** are named `*.docker.test.ts`. They are excluded from `pnpm test` and `pnpm check` and run with `pnpm test:docker` (`vitest.docker.config.ts`, serial, long timeouts), and in CI by `.github/workflows/docker.yml` when core, cli, fixtures or e2e change. Every container they create is removed in `finally`.
+- **Browser tests** (`*.browser.test.ts`) drive a real Chromium against pages the test serves itself, without Docker. They run with the Docker tests (`pnpm test:docker`, and the same CI job), so `pnpm check` never needs a browser.
 - **The fixture** is ground truth: changing the sample app or a branch overlay means updating `fixtures/expected.json` in the same PR. Its lockfile is regenerated with `pnpm install --lockfile-only` in a copy outside the workspace; never install or run the fixture app on the host.
 - **Imports** use explicit `.js` extensions for relative paths (NodeNext), `import type` for types, and the order enforced by `import-x/order`.
 - **Lint suppressions** need a reason: `// eslint-disable-next-line <rule> -- <why>`. Unused or undescribed directives fail lint.

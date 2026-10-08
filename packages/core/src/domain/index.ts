@@ -6,4 +6,5 @@ export * from './placeholders.js';
 export * from './recipe.js';
 export * from './stage.js';
 export * from './target.js';
+export * from './ui-capture.js';
 export * from './workspace.js';

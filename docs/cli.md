@@ -8,7 +8,7 @@ From a build, the same command is `node packages/cli/dist/main.js run …` (pack
 
 ## `bdiff run`
 
-Compares the behavior of `--base` and `--head` of a repository and writes a run record.
+Compares the behavior of `--base` and `--head` of a repository and writes a run record. It needs a running Docker daemon and, for the UI probe, Chromium installed with `pnpm browser:install`; without it the run fails at `probe-ui` with `BROWSER_UNAVAILABLE`.
 
 | Flag                  | Env                 | Default  | Meaning                                                                              |
 | --------------------- | ------------------- | -------- | ------------------------------------------------------------------------------------ |
@@ -49,6 +49,16 @@ Other environment variables:
 | `130` | Interrupted by SIGINT or SIGTERM; cleanup ran and the run was recorded as `ABORTED`.          |
 
 On the first Ctrl+C (or SIGTERM), bdiff aborts the stage in progress, runs every cleanup hook (containers, worktrees, browsers), renders the report and writes the record. A second Ctrl+C exits immediately without waiting for cleanup.
+
+## Chromium sandbox on Linux
+
+The UI probe loads pages built from the repository under test, so Chromium always runs with its sandbox on; bdiff has no option to turn it off. Ubuntu 23.10+ restricts the unprivileged user namespaces the sandbox needs, and the run then fails at `probe-ui` with `BROWSER_UNAVAILABLE` ("Chromium could not start its sandbox"). Allow them until the next reboot with:
+
+```bash
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+```
+
+or permanently with an AppArmor profile for Playwright's Chromium, as described in [Chromium's AppArmor notes](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md). macOS needs nothing.
 
 ## Containers
 
