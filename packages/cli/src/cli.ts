@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import {
   BdiffError,
+  createAnthropicLlmClient,
+  createApiProbeStage,
   createCostCalculator,
   createDependencyCruiserGraph,
   createEnvironmentStage,
@@ -16,6 +18,7 @@ import {
   createUiProbeStage,
   createWorkspaceStage,
   DEFAULT_BUDGET_USD,
+  loadLlmConfig,
   loadPricingTable,
   nodeFileSystem,
   runPipeline,
@@ -25,6 +28,7 @@ import type {
   Clock,
   Exec,
   FileSystem,
+  LlmClient,
   Logger,
   LogLevel,
   PipelineStages,
@@ -64,14 +68,22 @@ export interface CliIo {
   readonly forceExit: (code: number) => void;
 }
 
+/** Services the CLI builds per run, once configuration is loaded, and hands to the stages. */
+export interface StageServices {
+  readonly llm: LlmClient;
+}
+
 /** Adapters and stages the CLI wires into the pipeline. */
 export interface CliDeps {
   readonly clock: Clock;
   readonly fs: FileSystem;
   readonly exec: Exec;
-  readonly stages: PipelineStages;
+  /** The stages of a run, given the services built from the run's configuration. */
+  readonly createStages: (services: StageServices) => PipelineStages;
   readonly createLogger: (level: LogLevel) => Logger;
   readonly pricingPath: string;
+  /** `config/llm.json`: validated (models priced) before every run. */
+  readonly llmConfigPath: string;
   /** Base for relative paths such as `--out`. */
   readonly cwd: string;
 }
@@ -87,24 +99,23 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
   const exec = createExecaExec();
   const cwd = process.cwd();
   const cache = cacheDir(env);
+  const http = createFetchHttpClient();
   return {
     clock: systemClock,
     fs: nodeFileSystem,
     exec,
-    stages: {
+    createStages: ({ llm }) => ({
       ...createStubStages(),
       workspace: createWorkspaceStage({ exec, fs: nodeFileSystem, cacheDir: cache, cwd }),
       impact: createImpactStage({ fs: nodeFileSystem, graph: createDependencyCruiserGraph() }),
       recipe: createRecipeStage({ fs: nodeFileSystem, cacheDir: cache, cwd }),
-      environment: createEnvironmentStage({
-        exec,
-        fs: nodeFileSystem,
-        http: createFetchHttpClient(),
-      }),
+      environment: createEnvironmentStage({ exec, fs: nodeFileSystem, http }),
       probeUi: createUiProbeStage({ browser: createPlaywrightLauncher(), fs: nodeFileSystem }),
-    },
+      probeApi: createApiProbeStage({ http, fs: nodeFileSystem, llm }),
+    }),
     createLogger: (level) => createLogger({ level }),
     pricingPath: env.BDIFF_PRICING ?? path.join(REPO_ROOT, 'config', 'pricing.json'),
+    llmConfigPath: path.join(REPO_ROOT, 'config', 'llm.json'),
     cwd,
   };
 }
@@ -200,7 +211,12 @@ async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
   }
 
   try {
-    const costs = createCostCalculator(await loadPricingTable(deps.fs, deps.pricingPath));
+    const pricing = await loadPricingTable(deps.fs, deps.pricingPath);
+    const costs = createCostCalculator(pricing);
+    // Credentials are only needed by a run that calls the LLM; the SDK reads them from the env.
+    const llm = createAnthropicLlmClient({
+      config: await loadLlmConfig(deps.fs, deps.llmConfigPath, pricing),
+    });
     const toolVersion = await resolveToolVersion({
       env: io.env,
       exec: deps.exec,
@@ -208,7 +224,7 @@ async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
       signal: controller.signal,
       logger,
     });
-    const { result, runJsonPath } = await runPipeline(config.target, deps.stages, {
+    const { result, runJsonPath } = await runPipeline(config.target, deps.createStages({ llm }), {
       clock: deps.clock,
       fs: deps.fs,
       logger,

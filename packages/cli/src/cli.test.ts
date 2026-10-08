@@ -19,6 +19,7 @@ import { EXIT_CODES, runCli } from './cli.js';
 import type { CliDeps, SignalSource } from './cli.js';
 
 const pricingPath = path.resolve(import.meta.dirname, '../../../config/pricing.json');
+const llmConfigPath = path.resolve(import.meta.dirname, '../../../config/llm.json');
 const runArgs = [
   'run',
   '--repo',
@@ -45,9 +46,10 @@ function harness(cwd: string, stages: PipelineStages = createStubStages()) {
     clock: systemClock,
     fs: nodeFileSystem,
     exec: new FakeExec(),
-    stages,
+    createStages: () => stages,
     createLogger: () => createTestLogger(),
     pricingPath,
+    llmConfigPath,
     cwd,
   };
   return {
@@ -253,6 +255,28 @@ describe('runCli', () => {
 
     expect(code).toBe(EXIT_CODES.failed);
     expect(h.output().stderr).toContain('could not be recorded');
+    expect(await nodeFileSystem.exists(path.join(cwd, '.bdiff'))).toBe(false);
+  });
+
+  it('exits 1 without running when the LLM config is invalid', async () => {
+    const h = harness(cwd);
+    const llmConfigPath = path.join(cwd, 'llm.json');
+    await nodeFileSystem.writeFile(
+      llmConfigPath,
+      JSON.stringify({
+        tiers: {
+          fast: { model: 'unpriced-model', effort: 'medium' },
+          smart: { model: 'unpriced-model', effort: 'medium' },
+        },
+        requestTimeoutMs: 1_000,
+        maxRetries: 0,
+      }),
+    );
+
+    const code = await runCli(runArgs, h.io, { ...h.deps, llmConfigPath });
+
+    expect(code).toBe(EXIT_CODES.failed);
+    expect(h.output().stderr).toMatch(/could not be recorded.*unpriced-model/);
     expect(await nodeFileSystem.exists(path.join(cwd, '.bdiff'))).toBe(false);
   });
 });
