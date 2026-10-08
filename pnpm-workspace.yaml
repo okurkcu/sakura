@@ -8,3 +8,6 @@ allowBuilds:
   unrs-resolver: false
 
 engineStrict: true
+
+minimumReleaseAgeExclude:
+  - '@anthropic-ai/sdk@0.132.1'
