@@ -4,7 +4,7 @@ import { ApiProbeSchema } from '../domain/api-probe.js';
 import { RunningEnvironmentSchema } from '../domain/environment.js';
 import { FindingSchema } from '../domain/finding.js';
 import { ImpactPlanSchema } from '../domain/impact.js';
-import { InterpretationSchema } from '../domain/placeholders.js';
+import { InterpretationSchema } from '../domain/interpretation.js';
 import { RecipeSchema } from '../domain/recipe.js';
 import { UiCaptureSchema } from '../domain/ui-capture.js';
 import { WorkspaceSchema } from '../domain/workspace.js';

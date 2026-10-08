@@ -4,7 +4,7 @@ import type { ApiProbe } from '../domain/api-probe.js';
 import type { RunningEnvironment } from '../domain/environment.js';
 import type { Finding } from '../domain/finding.js';
 import type { ImpactPlan } from '../domain/impact.js';
-import type { Interpretation } from '../domain/placeholders.js';
+import type { Interpretation } from '../domain/interpretation.js';
 import type { Recipe } from '../domain/recipe.js';
 import type { Target } from '../domain/target.js';
 import type { UiCapture } from '../domain/ui-capture.js';
@@ -26,7 +26,14 @@ export interface PipelineStages {
   >;
   readonly diff: Stage<{ impact: ImpactPlan; ui: UiCapture[]; api: ApiProbe }, Finding[]>;
   readonly interpret: Stage<
-    { target: Target; workspace: Workspace; impact: ImpactPlan; findings: Finding[] },
+    {
+      target: Target;
+      workspace: Workspace;
+      impact: ImpactPlan;
+      ui: UiCapture[];
+      api: ApiProbe;
+      findings: Finding[];
+    },
     Interpretation
   >;
   /** Runs after every run, including failed and skipped ones. */
