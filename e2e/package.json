@@ -6,6 +6,9 @@
   "type": "module",
   "dependencies": {
     "@bdiff/core": "workspace:*",
-    "@bdiff/fixtures": "workspace:*"
+    "@bdiff/fixtures": "workspace:*",
+    "@types/pngjs": "^6.0.5",
+    "playwright": "1.63.0",
+    "pngjs": "^7.0.0"
   }
 }
