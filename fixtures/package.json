@@ -1,0 +1,17 @@
+{
+  "name": "@bdiff/fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Ground truth for bdiff: a sample Next.js app, a script that turns it into a git repo with known PR branches, and the expected results.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "bdiff-source": "./index.ts",
+      "default": "./index.ts"
+    }
+  },
+  "dependencies": {
+    "@bdiff/core": "workspace:*",
+    "zod": "^4.6.5"
+  }
+}
