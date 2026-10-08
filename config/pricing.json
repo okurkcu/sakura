@@ -1,0 +1,48 @@
+{
+  "currency": "USD",
+  "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+  "retrievedAt": "2026-10-08",
+  "models": {
+    "claude-haiku-5-5": {
+      "tiers": [
+        {
+          "upToPromptTokens": 100000,
+          "inputPerMTok": 0.1,
+          "outputPerMTok": 0.5,
+          "cacheReadPerMTok": 0.01,
+          "cacheWrite5mPerMTok": 0.125,
+          "cacheWrite1hPerMTok": 0.2
+        },
+        {
+          "inputPerMTok": 0.5,
+          "outputPerMTok": 2.5,
+          "cacheReadPerMTok": 0.05,
+          "cacheWrite5mPerMTok": 0.625,
+          "cacheWrite1hPerMTok": 1
+        }
+      ]
+    },
+    "claude-haiku-4-5": {
+      "tiers": [
+        {
+          "inputPerMTok": 1,
+          "outputPerMTok": 5,
+          "cacheReadPerMTok": 0.1,
+          "cacheWrite5mPerMTok": 1.25,
+          "cacheWrite1hPerMTok": 2
+        }
+      ]
+    },
+    "claude-sonnet-5-5": {
+      "tiers": [
+        {
+          "inputPerMTok": 2,
+          "outputPerMTok": 10,
+          "cacheReadPerMTok": 0.1,
+          "cacheWrite5mPerMTok": 2.5,
+          "cacheWrite1hPerMTok": 4
+        }
+      ]
+    }
+  }
+}
