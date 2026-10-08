@@ -38,6 +38,7 @@ Other environment variables:
 - **stdout:** a short summary (status, duration, LLM cost, path of `run.json`).
 - **stderr:** structured JSON logs (pino) and usage errors.
 - **Files:** `<out>/runs/<runId>/run.json` and one row in `<out>/results.csv`; see [metrics.md](metrics.md).
+- **Report:** `<out>/runs/<runId>/report/index.html`, for every run (failed and skipped ones too). Open it from disk: it needs no server and loads nothing from the network. Screenshots, overlays and logs are linked by relative path, so keep the run directory together when moving it.
 
 ## Exit codes
 

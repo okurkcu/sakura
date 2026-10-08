@@ -1,0 +1,176 @@
+<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; img-src &#39;self&#39; file: data:; style-src &#39;unsafe-inline&#39;; script-src &#39;unsafe-inline&#39;" />
+        <title>bdiff · pr/docs-only · skipped</title>
+        <style>
+          
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --muted: #59636e;
+  --border: #d1d9e0;
+  --panel: #f6f8fa;
+  --link: #0969da;
+  --breaking: #cf222e;
+  --breaking-bg: #ffebe9;
+  --warning: #9a6700;
+  --warning-bg: #fff8c5;
+  --info: #0969da;
+  --info-bg: #ddf4ff;
+  --ok: #1a7f37;
+  --ok-bg: #dafbe1;
+  --added-bg: #dafbe1;
+  --removed-bg: #ffebe9;
+  --changed-bg: #fff8c5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --fg: #e6edf3;
+    --muted: #9198a1;
+    --border: #3d444d;
+    --panel: #151b23;
+    --link: #4493f8;
+    --breaking: #ff7b72;
+    --breaking-bg: #3c1618;
+    --warning: #d29922;
+    --warning-bg: #3a2e12;
+    --info: #4493f8;
+    --info-bg: #102a4c;
+    --ok: #3fb950;
+    --ok-bg: #12301d;
+    --added-bg: #12301d;
+    --removed-bg: #3c1618;
+    --changed-bg: #3a2e12;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+a { color: var(--link); }
+h1 { font-size: 24px; margin: 0 0 8px; }
+h2 { font-size: 19px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 16px; margin: 20px 0 8px; }
+code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+pre { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 10px; overflow: auto; margin: 8px 0; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 13px; }
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 12px 0; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid currentColor; }
+.badge.breaking, .badge.high, .badge.failed { color: var(--breaking); background: var(--breaking-bg); }
+.badge.warning, .badge.medium, .badge.skipped { color: var(--warning); background: var(--warning-bg); }
+.badge.info { color: var(--info); background: var(--info-bg); }
+.badge.low, .badge.success { color: var(--ok); background: var(--ok-bg); }
+.callout { border: 1px solid var(--border); border-left-width: 4px; border-radius: 6px; padding: 12px 16px; margin: 16px 0; background: var(--panel); }
+.callout.failed { border-left-color: var(--breaking); }
+.callout.skipped { border-left-color: var(--warning); }
+.callout.unexpected { border-left-color: var(--breaking); }
+.summary li { margin: 6px 0; }
+.finding { border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin: 10px 0; }
+.finding:target { outline: 2px solid var(--link); }
+.finding-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.compare { position: relative; display: grid; border: 1px solid var(--border); border-radius: 6px; overflow: auto; max-height: 75vh; background: #fff; }
+.compare > img { grid-area: 1 / 1; width: 100%; height: auto; display: block; }
+.compare > .after { clip-path: inset(0 0 0 var(--split, 50%)); }
+.compare > .overlay { display: none; }
+.ui-route:has(.overlay-toggle:checked) .compare > .overlay { display: block; }
+.ui-route:has(.overlay-toggle:checked) .compare > .after { display: none; }
+.controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 8px 0; font-size: 13px; }
+.controls input[type="range"] { width: 240px; }
+.side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.side-by-side > div { min-width: 0; }
+pre .line { display: block; }
+pre .line.changed { background: var(--changed-bg); }
+pre .line.added { background: var(--added-bg); }
+pre .line.removed { background: var(--removed-bg); }
+@media (max-width: 800px) {
+  .side-by-side { grid-template-columns: 1fr; }
+  main { padding: 16px; }
+}
+
+        </style>
+      </head>
+      <body>
+        <main>
+          <header>
+    <h1>bdiff report <span class="badge skipped">skipped</span></h1>
+    <dl class="facts">
+      <dt>Repository</dt>
+      <dd class="mono">/tmp/bdiff-fixture</dd>
+      <dt>Pull request</dt>
+              <dd>
+                #7 Document the pages in the README
+              </dd>
+      <dt>Base</dt>
+      <dd class="mono">
+        main @ 1111111111
+      </dd>
+      <dt>Head</dt>
+      <dd class="mono">
+        pr/docs-only @ 2222222222
+      </dd>
+      <dt>Duration</dt>
+      <dd>0 ms</dd>
+      <dt>Cost</dt>
+      <dd>
+        LLM $0.0000 · containers
+        0 s
+      </dd>
+      <dt>Run</dt>
+      <dd class="mono">01k6t3y8k0g3m5x9a2b7c4d6ef · 2026-01-01T00:00:00.000Z · bdiff aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</dd>
+    </dl>
+  </header> <section class="callout skipped">
+      <h2>Skipped: docs-only</h2>
+      <p>The pull request only changes documentation. Nothing was built or probed.</p>
+      <p class="muted">Changed files:</p>
+              <pre>modified: README.md
+</pre>
+    </section> 
+           
+            <section>
+    <h2>Details</h2>
+    <h3>Stages</h3>
+    <table>
+      <tr>
+        <th>Stage</th>
+        <th>Outcome</th>
+        <th>Duration</th>
+      </tr>
+      
+    </table>
+    <h3>LLM usage</h3>
+    <p class="muted">No LLM calls.</p>
+    
+    <h3>Logs</h3>
+            <ul>
+              <li><a href="../logs/base.log">base.log</a></li><li><a href="../logs/head.log">head.log</a></li>
+            </ul>
+  </section>
+        </main>
+        <script>
+          
+document.querySelectorAll('[data-compare]').forEach(function (route) {
+  var slider = route.querySelector('input[type="range"]');
+  var compare = route.querySelector('.compare');
+  if (!slider || !compare) return;
+  function update() { compare.style.setProperty('--split', slider.value + '%'); }
+  slider.addEventListener('input', update);
+  update();
+});
+;
+        </script>
+      </body>
+    </html>

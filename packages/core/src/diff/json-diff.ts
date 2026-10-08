@@ -33,7 +33,7 @@ export function diffJson(baseA: JsonValue, baseB: JsonValue, head: JsonValue): J
   let noise = 0;
   const raw = compare(baseA, head, '$');
   for (const change of raw) {
-    const noisyRoot = noisy.find((root) => isAtOrBelow(change.path, root));
+    const noisyRoot = noisy.find((root) => isJsonPathAtOrBelow(change.path, root));
     if (noisyRoot === undefined) {
       changes.push(change);
       continue;
@@ -90,7 +90,7 @@ function compare(before: JsonValue, after: JsonValue, path: string): JsonChange[
   }
   if (isObject(before) && isObject(after)) {
     const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
-    return keys.flatMap((key) => compareMember(before[key], after[key], childPath(path, key)));
+    return keys.flatMap((key) => compareMember(before[key], after[key], jsonChildPath(path, key)));
   }
   return before === after ? [] : [{ kind: 'value-changed', path, before, after }];
 }
@@ -116,16 +116,17 @@ function isObject(value: JsonValue): value is Record<string, JsonValue> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** `$.key` for identifier-like keys, `$["any key"]` otherwise. */
-function childPath(path: string, key: string): string {
+/** The path of `key` in the object at `path`: `$.key` for identifier-like keys, `$["any key"]` otherwise. Pure. */
+export function jsonChildPath(path: string, key: string): string {
   return /^[A-Za-z_$][\w$]*$/.test(key) ? `${path}.${key}` : `${path}[${JSON.stringify(key)}]`;
 }
 
-function isAtOrBelow(path: string, root: string): boolean {
+/** Whether `path` is `root` or inside it (`$.a.b` is below `$.a`, `$.ab` is not). Pure. */
+export function isJsonPathAtOrBelow(path: string, root: string): boolean {
   return path === root || path.startsWith(`${root}.`) || path.startsWith(`${root}[`);
 }
 
-/** Follows a path made by {@link childPath} and array indexes. */
+/** Follows a path made by {@link jsonChildPath} and array indexes. */
 function valueAt(
   root: JsonValue,
   path: string,

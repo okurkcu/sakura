@@ -24,6 +24,7 @@ import {
 } from '@bdiff/core/testing';
 import { buildFixtureRepo } from '@bdiff/fixtures';
 import type { FixtureRepo } from '@bdiff/fixtures';
+import { createReportStage } from '@bdiff/report';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { composeLeftovers } from './compose-leftovers.js';
@@ -147,6 +148,7 @@ describe('environment stage on the fixture (@docker)', () => {
         workspace: createWorkspaceStage({ exec, fs: nodeFileSystem, cacheDir, cwd: root }),
         recipe: createRecipeStage({ fs: nodeFileSystem, cacheDir, cwd: root }),
         environment: createEnvironmentStage({ exec, fs: nodeFileSystem, http }),
+        report: createReportStage({ fs: nodeFileSystem }),
       },
       {
         clock: systemClock,
@@ -173,6 +175,10 @@ describe('environment stage on the fixture (@docker)', () => {
     expect(Array.isArray(logTail) && logTail.length > 0 && logTail.length <= 100).toBe(true);
     expect(JSON.stringify(logTail)).toMatch(/login\/page\.tsx|Syntax|Expected/i);
     expect(record?.computeSeconds.head).toBeGreaterThan(0);
+    const report = await nodeFileSystem.readFile(
+      path.join(root, 'out-broken', 'runs', result.record.runId, 'report', 'index.html'),
+    );
+    expect(report).toContain('<h2>Failed at environment: SETUP_BUILD_FAILED</h2>');
     expect(await leftovers(`bdiff-${result.record.runId}`)).toEqual([]);
   });
 
@@ -211,6 +217,11 @@ describe('environment stage on the fixture (@docker)', () => {
     expect(await nodeFileSystem.exists(path.join(out, 'runs', runId, 'logs', 'head.log'))).toBe(
       true,
     );
+    const report = await nodeFileSystem.readFile(
+      path.join(out, 'runs', runId, 'report', 'index.html'),
+    );
+    expect(report).toContain('<span class="badge success">success</span>');
+    expect(report).toContain('No behavior changes observed in the probed surface.');
     expect(await leftovers(`bdiff-${runId}`)).toEqual([]);
   });
 

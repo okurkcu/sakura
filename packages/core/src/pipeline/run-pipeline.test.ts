@@ -194,6 +194,7 @@ describe('runPipeline', () => {
     expect(result.record.llmUsage).toEqual([]);
     expect(result.record.totals).toMatchObject({ llmCalls: 0, llmCostUsd: 0 });
     expect(result.interpretation).toMatchObject({ source: 'no-findings' });
+    expect(result.record.riskLevel).toBe('low');
     expect(llm.calls).toEqual([]);
   });
 

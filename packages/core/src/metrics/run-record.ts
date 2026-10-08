@@ -87,6 +87,11 @@ const runRecordBase = z.strictObject({
    * empty so records written before it existed still read.
    */
   apiRequests: z.array(ApiRequestSchema).default([]),
+  /**
+   * The interpretation's risk level, or `null` when the run produced no interpretation. Defaults
+   * to `null` so records written before it existed still read.
+   */
+  riskLevel: z.enum(['low', 'medium', 'high']).nullable().default(null),
 });
 
 /**

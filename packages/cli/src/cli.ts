@@ -38,6 +38,7 @@ import type {
   PipelineStages,
   RunRecord,
 } from '@bdiff/core';
+import { createReportStage } from '@bdiff/report';
 import { Command, CommanderError } from 'commander';
 
 import { parseRunConfig, RUN_DEFAULTS, RUN_ENV } from './config.js';
@@ -121,6 +122,7 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
       probeApi: createApiProbeStage({ http, fs: nodeFileSystem, llm }),
       diff: createDiffStage({ fs: nodeFileSystem, images: pngCodec }),
       interpret: createInterpretStage({ llm, exec, github }),
+      report: createReportStage({ fs: nodeFileSystem }),
     }),
     createLogger: (level) => createLogger({ level }),
     pricingPath: env.BDIFF_PRICING ?? path.join(REPO_ROOT, 'config', 'pricing.json'),
