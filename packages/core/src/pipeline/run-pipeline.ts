@@ -182,14 +182,15 @@ export async function runPipeline(
       }));
       recorder.setApiRequests(api.requests);
       const findings = (outputs.findings = await runStage(stages.diff, { impact, ui, api }));
-      outputs.interpretation = await runStage(stages.interpret, {
+      const interpretation = (outputs.interpretation = await runStage(stages.interpret, {
         target,
         workspace,
         impact,
         ui,
         api,
         findings,
-      });
+      }));
+      recorder.setRiskLevel(interpretation.riskLevel);
       outcome = { status: 'success' };
     }
   } catch (error) {

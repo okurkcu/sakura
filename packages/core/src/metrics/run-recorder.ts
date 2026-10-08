@@ -7,6 +7,7 @@ import { createStageTimer } from './stage-timer.js';
 import type { StageTimer } from './stage-timer.js';
 import type { Clock } from '../adapters/clock.js';
 import type { ApiRequest } from '../domain/api-probe.js';
+import type { Interpretation } from '../domain/interpretation.js';
 import type { Side, StageName } from '../domain/stage.js';
 import type { Target } from '../domain/target.js';
 import { TargetSchema } from '../domain/target.js';
@@ -52,6 +53,8 @@ export interface RunRecorder {
   addCounts(counts: Partial<RunCounts>): void;
   /** Records the API probe's request set, generated requests included. */
   setApiRequests(requests: readonly ApiRequest[]): void;
+  /** Records the interpretation's risk level. */
+  setRiskLevel(riskLevel: Interpretation['riskLevel']): void;
   /**
    * The record as it would be if the run ended now with `outcome`, without ending it. Used to
    * render the report before the final record exists.
@@ -91,6 +94,7 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
     findings: 0,
   };
   let apiRequests: ApiRequest[] = [];
+  let riskLevel: Interpretation['riskLevel'] | null = null;
   let finished = false;
 
   const build = (outcome: RunOutcome): RunRecord => {
@@ -109,6 +113,7 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
       totals: computeTotals(llmUsage, computeSeconds),
       counts: { ...counts },
       apiRequests: [...apiRequests],
+      riskLevel,
     };
     switch (outcome.status) {
       case 'success':
@@ -145,6 +150,9 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
     },
     setApiRequests: (requests) => {
       apiRequests = [...requests];
+    },
+    setRiskLevel: (level) => {
+      riskLevel = level;
     },
     addCounts: (partial) => {
       for (const key of RunCountsSchema.keyof().options) {
