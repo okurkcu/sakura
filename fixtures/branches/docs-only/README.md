@@ -18,3 +18,4 @@ The app listens on port 3000.
 - `/login`: sign-in form
 - `/orders`: order history
 - `/dashboard`: live stats
+- `/status`: service status

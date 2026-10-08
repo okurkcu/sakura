@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "baseBranch": "main",
-  "pages": ["/", "/dashboard", "/login", "/orders"],
+  "pages": ["/", "/dashboard", "/login", "/orders", "/status"],
   "endpoints": ["GET /api/health", "GET /api/orders/latest"],
   "noisyRoutes": ["/dashboard"],
   "branches": {
