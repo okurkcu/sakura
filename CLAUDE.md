@@ -132,13 +132,15 @@ interface LlmClient {
     run.json
     compose.yml
     logs/
-    ui/<probeRun>/<route>.png
-    api/<probeRun>/<endpoint>.json
+    ui/<probeRun>/<route-slug>-<hash8>.png
+    api/<probeRun>/<request-slug>-<hash8>.json
     diff/
     report/index.html
 ```
 
-All paths come from the typed `ArtifactPaths` helper — never build path strings ad hoc.
+All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root, runId)`) — never build path strings ad hoc. Routes and request keys become a readable slug plus 8 hex chars of their SHA-256, so distinct keys never collide and untrusted keys can't escape the run directory. Run ids are lowercase ULIDs.
+
+**Metrics.** A run's numbers are accumulated by a `RunRecorder` (stage timings via its `timer`, LLM usage via `recordLlmUsage`, compute seconds, counts) and persisted by `MetricsStore` (`run.json` atomically, one `results.csv` row). LLM cost comes only from `config/pricing.json` through `CostCalculator`; never hardcode a price. `run.json` fields, CSV columns and the pricing rules are documented in `docs/metrics.md`; a test fails if the documented CSV columns drift from the code.
 
 ## Repo tooling conventions
 
