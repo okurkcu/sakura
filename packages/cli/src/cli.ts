@@ -4,9 +4,11 @@ import path from 'node:path';
 import {
   BdiffError,
   createCostCalculator,
+  createDependencyCruiserGraph,
   createEnvironmentStage,
   createExecaExec,
   createFetchHttpClient,
+  createImpactStage,
   createRecipeStage,
   createLogger,
   createStubStages,
@@ -90,6 +92,7 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
     stages: {
       ...createStubStages(),
       workspace: createWorkspaceStage({ exec, fs: nodeFileSystem, cacheDir: cache, cwd }),
+      impact: createImpactStage({ fs: nodeFileSystem, graph: createDependencyCruiserGraph() }),
       recipe: createRecipeStage({ fs: nodeFileSystem, cacheDir: cache, cwd }),
       environment: createEnvironmentStage({
         exec,
