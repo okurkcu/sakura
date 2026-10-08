@@ -8,7 +8,7 @@ From a build, the same command is `node packages/cli/dist/main.js run …` (pack
 
 ## `bdiff run`
 
-Compares the behavior of `--base` and `--head` of a repository and writes a run record.
+Compares the behavior of `--base` and `--head` of a repository and writes a run record. It needs a running Docker daemon and, for the UI probe, Chromium installed with `pnpm browser:install`; without it the run fails at `probe-ui` with `BROWSER_UNAVAILABLE`.
 
 | Flag                  | Env                 | Default  | Meaning                                                                              |
 | --------------------- | ------------------- | -------- | ------------------------------------------------------------------------------------ |
