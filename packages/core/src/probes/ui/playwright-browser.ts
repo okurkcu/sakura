@@ -4,7 +4,8 @@ import { chromium, errors } from 'playwright';
 import type { Browser, BrowserContext, Page, Request } from 'playwright';
 
 import type { CaptureOptions, PageObservation, UiBrowserLauncher } from './browser.js';
-import type { FailedRequest, UiCaptureError } from '../../domain/ui-capture.js';
+import type { ProbeError } from '../../domain/probe-error.js';
+import type { FailedRequest } from '../../domain/ui-capture.js';
 import { abortError, throwIfAborted } from '../../errors/abort.js';
 import { BdiffError } from '../../errors/bdiff-error.js';
 
@@ -184,7 +185,7 @@ async function capturePage(
     let screenshotSaved = false;
     let title = '';
     let text = '';
-    let error: UiCaptureError | undefined;
+    let error: ProbeError | undefined;
     try {
       const response = await page.goto(url, { waitUntil: 'load', timeout: remaining() });
       status = response?.status() ?? null;

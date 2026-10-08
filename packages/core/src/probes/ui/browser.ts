@@ -1,4 +1,5 @@
-import type { FailedRequest, UiCaptureError } from '../../domain/ui-capture.js';
+import type { ProbeError } from '../../domain/probe-error.js';
+import type { FailedRequest } from '../../domain/ui-capture.js';
 
 /** What the browser observed while loading one page. URLs and messages are as the browser saw them. */
 export interface PageObservation {
@@ -19,7 +20,7 @@ export interface PageObservation {
   /** `false` when some request was still waiting for its response when the settle budget ran out. */
   readonly settled: boolean;
   /** Set when the page could not be loaded or captured in time. */
-  readonly error?: UiCaptureError;
+  readonly error?: ProbeError;
 }
 
 /** Options of one {@link UiBrowser.capture}. */

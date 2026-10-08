@@ -6,6 +6,7 @@ export * from './domain/index.js';
 export * from './environment/index.js';
 export * from './errors/index.js';
 export * from './impact/index.js';
+export * from './probes/api/index.js';
 export * from './probes/ui/index.js';
 export * from './llm/index.js';
 export * from './metrics/index.js';

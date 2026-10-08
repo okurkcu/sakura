@@ -50,6 +50,32 @@ Other environment variables:
 
 On the first Ctrl+C (or SIGTERM), bdiff aborts the stage in progress, runs every cleanup hook (containers, worktrees, browsers), renders the report and writes the record. A second Ctrl+C exits immediately without waiting for cleanup.
 
+## Explicit API requests
+
+The API probe sends the same requests to base and head: every static GET endpoint the PR can affect, plus one or two requests per other endpoint (POST, PUT, …) that the LLM (`fast` tier) proposes from the handler's source, labeled `generated` in `run.json` (`apiRequests`). Generating needs `ANTHROPIC_API_KEY` (or an `ant auth login` profile); without credentials, or once `--budget` is spent, those endpoints are listed as not probed and the rest of the run goes on. To send requests of your own, add `bdiff.requests.json` to the app or repository root; they are sent first, in order, and an endpoint they cover gets no generated request:
+
+```json
+{
+  "requests": [
+    { "method": "GET", "path": "/api/orders?page=2" },
+    {
+      "method": "POST",
+      "path": "/api/feedback",
+      "description": "Five-star feedback",
+      "json": { "message": "Great mugs", "rating": 5 }
+    },
+    {
+      "method": "POST",
+      "path": "/api/search",
+      "headers": { "Content-Type": "application/x-www-form-urlencoded" },
+      "text": "q=mug"
+    }
+  ]
+}
+```
+
+`path` is a path on the app (no host); `json` or `text` is the body; `headers` may not set `Host`, `Cookie` or transport headers. At most 50 requests. An invalid file fails the run with `CONFIG_INVALID`. Every request also carries `User-Agent: bdiff` and never a cookie, and each one has 10 seconds.
+
 ## Chromium sandbox on Linux
 
 The UI probe loads pages built from the repository under test, so Chromium always runs with its sandbox on; bdiff has no option to turn it off. Ubuntu 23.10+ restricts the unprivileged user namespaces the sandbox needs, and the run then fails at `probe-ui` with `BROWSER_UNAVAILABLE` ("Chromium could not start its sandbox"). Allow them until the next reboot with:

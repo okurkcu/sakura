@@ -24,7 +24,7 @@ process.exitCode = await runCli(
   {
     ...deps,
     clock: systemClock,
-    stages: {
+    createStages: () => ({
       ...stubs,
       workspace: {
         name: 'workspace',
@@ -50,6 +50,6 @@ process.exitCode = await runCli(
             process.stdout.write('READY\n');
           }),
       },
-    },
+    }),
   },
 );

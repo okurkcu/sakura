@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { ProbeErrorSchema } from './probe-error.js';
 import { ProbeRunSchema } from './stage.js';
 
 /** A request of the page that got an HTTP error status or no response at all. */
@@ -13,13 +14,6 @@ export const FailedRequestSchema = z.strictObject({
   failure: z.string().exactOptional(),
 });
 export type FailedRequest = z.infer<typeof FailedRequestSchema>;
-
-/** Why a page could not be captured. The run goes on; the capture carries the error. */
-export const UiCaptureErrorSchema = z.strictObject({
-  code: z.enum(['PROBE_TIMEOUT', 'PROBE_FAILED']),
-  message: z.string(),
-});
-export type UiCaptureError = z.infer<typeof UiCaptureErrorSchema>;
 
 /**
  * What one page looked like and how it behaved in one probe run. Strings are normalized so the
@@ -49,6 +43,6 @@ export const UiCaptureSchema = z.strictObject({
    */
   settled: z.boolean(),
   durationMs: z.number().nonnegative(),
-  error: UiCaptureErrorSchema.exactOptional(),
+  error: ProbeErrorSchema.exactOptional(),
 });
 export type UiCapture = z.infer<typeof UiCaptureSchema>;

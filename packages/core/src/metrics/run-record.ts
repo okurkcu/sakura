@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { RunIdSchema } from './run-id.js';
+import { ApiRequestSchema } from '../domain/api-probe.js';
 import { StageNameSchema } from '../domain/stage.js';
 import { TargetSchema } from '../domain/target.js';
 import { FailureRecordSchema } from '../errors/failure-record.js';
@@ -81,6 +82,11 @@ const runRecordBase = z.strictObject({
   llmUsage: z.array(LlmUsageSchema),
   totals: RunTotalsSchema,
   counts: RunCountsSchema,
+  /**
+   * The API probe's request set, generated requests included (`source: 'generated'`). Defaults to
+   * empty so records written before it existed still read.
+   */
+  apiRequests: z.array(ApiRequestSchema).default([]),
 });
 
 /**
