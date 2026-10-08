@@ -5,10 +5,10 @@ import type {
   ApiCapture,
   ImpactPlan,
   Interpretation,
-  Recipe,
   RunningEnvironment,
   UiCapture,
 } from '../domain/placeholders.js';
+import type { Recipe } from '../domain/recipe.js';
 import type { Target } from '../domain/target.js';
 import type { Workspace } from '../domain/workspace.js';
 

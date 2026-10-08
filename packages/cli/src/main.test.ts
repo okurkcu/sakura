@@ -90,6 +90,10 @@ describe('bdiff binary', () => {
     await mkdir(repo);
     await git(repo, 'init', '--quiet', '--initial-branch', 'main');
     await writeFile(path.join(repo, 'README.md'), 'base\n');
+    await writeFile(
+      path.join(repo, 'package.json'),
+      JSON.stringify({ scripts: { build: 'next build' }, dependencies: { next: '16.4.0' } }),
+    );
     await git(repo, 'add', '--all');
     await git(repo, 'commit', '--quiet', '-m', 'base');
     await git(repo, 'checkout', '--quiet', '-b', 'pr/1');

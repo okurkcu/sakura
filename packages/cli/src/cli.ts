@@ -5,6 +5,7 @@ import {
   BdiffError,
   createCostCalculator,
   createExecaExec,
+  createRecipeStage,
   createLogger,
   createStubStages,
   createWorkspaceStage,
@@ -79,13 +80,15 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '../../..');
 export function createDefaultCliDeps(env: Readonly<Record<string, string | undefined>>): CliDeps {
   const exec = createExecaExec();
   const cwd = process.cwd();
+  const cache = cacheDir(env);
   return {
     clock: systemClock,
     fs: nodeFileSystem,
     exec,
     stages: {
       ...createStubStages(),
-      workspace: createWorkspaceStage({ exec, fs: nodeFileSystem, cacheDir: cacheDir(env), cwd }),
+      workspace: createWorkspaceStage({ exec, fs: nodeFileSystem, cacheDir: cache, cwd }),
+      recipe: createRecipeStage({ fs: nodeFileSystem, cacheDir: cache, cwd }),
     },
     createLogger: (level) => createLogger({ level }),
     pricingPath: env.BDIFF_PRICING ?? path.join(REPO_ROOT, 'config', 'pricing.json'),

@@ -156,6 +156,8 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 
 **Repo cache.** The workspace stage keeps one bare clone per repository in `~/.cache/bdiff/repos/<slug>-<hash8>` (`BDIFF_CACHE_DIR` overrides) and only fetches on later runs. All git calls go through `createGit` (`workspace/git.ts`): no user hooks, no credential prompts, no LFS downloads, https and local transports only.
 
+**Recipes.** The recipe stage turns the head checkout into a `Recipe` with pure detectors (`packages/core/src/recipe/detect-*.ts`) over a `RepoFiles` snapshot; each detector is unit-tested with in-memory file trees (`createRepoFiles`). Commands are argv arrays, never shell strings: `installCmd` runs in `installRoot`, everything else in `appRoot`. Only example env files are read, never a real `.env`. Recipes are cached in `~/.cache/bdiff/recipes/` keyed by repository and invalidated by a fingerprint of manifests, lockfiles and Node version files; entries with `source: 'llm'` (repair loop) are reused the same way. Missing information throws `SETUP_UNSUPPORTED`.
+
 **Metrics.** A run's numbers are accumulated by a `RunRecorder` (stage timings via its `timer`, LLM usage via `recordLlmUsage`, compute seconds, counts) and persisted by `MetricsStore` (`run.json` atomically, one `results.csv` row). LLM cost comes only from `config/pricing.json` through `CostCalculator`; never hardcode a price. `run.json` fields, CSV columns and the pricing rules are documented in `docs/metrics.md`; a test fails if the documented CSV columns drift from the code.
 
 ## Repo tooling conventions

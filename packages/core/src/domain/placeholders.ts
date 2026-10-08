@@ -3,10 +3,6 @@ import { z } from 'zod';
 // Contracts owned by later tasks. They are declared here so stage signatures are stable; each task
 // replaces its placeholder with the real schema.
 
-/** How to install, build and start a repo. TODO(SKR-21): define the schema. */
-export const RecipeSchema = z.looseObject({});
-export type Recipe = z.infer<typeof RecipeSchema>;
-
 /** Base and head apps running in containers, with URLs to probe. TODO(SKR-22): define the schema. */
 export const RunningEnvironmentSchema = z.looseObject({});
 export type RunningEnvironment = z.infer<typeof RunningEnvironmentSchema>;

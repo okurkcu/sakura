@@ -5,10 +5,10 @@ import {
   ApiCaptureSchema,
   ImpactPlanSchema,
   InterpretationSchema,
-  RecipeSchema,
   RunningEnvironmentSchema,
   UiCaptureSchema,
 } from '../domain/placeholders.js';
+import { RecipeSchema } from '../domain/recipe.js';
 import { WorkspaceSchema } from '../domain/workspace.js';
 import { RunRecordSchema } from '../metrics/run-record.js';
 
