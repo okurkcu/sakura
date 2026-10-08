@@ -18,6 +18,8 @@ Work is tracked in Jira: project **SKR**, epic **SKR-14**, tasks SKR-15 → SKR-
 | `pnpm typecheck`     | `tsc` over root tooling files and every package, tests included.     |
 | `pnpm test`          | Vitest, all projects. `pnpm vitest run --project core` for just one. |
 | `pnpm test:coverage` | Vitest with v8 coverage.                                             |
+| `pnpm test:docker`   | `*.docker.test.ts` integration tests; needs a running Docker daemon. |
+| `pnpm fixture:build` | Builds the fixture git repo in a temp dir and prints its path.       |
 | `pnpm build`         | `tsc -b tsconfig.build.json` (project references) into `dist/`.      |
 | `pnpm format`        | Prettier write.                                                      |
 
@@ -29,10 +31,12 @@ packages/
              MUST NOT import from cli/ or report/ (enforced by ESLint).
   report/    Renders a RunResult into static, self-contained HTML. Depends only on core types.
   cli/       commander entry point. The ONLY composition root: builds real adapters, injects them into core.
-fixtures/
-  sample-next-app/        Small Next.js app (ground truth)
-  build-fixture-repo.ts   Builds a git repo with known PR branches
-  expected.json           Expected impact + findings per branch
+fixtures/                 @bdiff/fixtures workspace package
+  sample-next-app/        Small Next.js app (ground truth); its own project, not linted by us
+  branches/<name>/        Files each PR branch adds or replaces on top of main
+  branches.ts             PR branch definitions
+  build-fixture-repo.ts   Builds a deterministic git repo with known PR branches
+  expected.json           Expected changed files, impact + findings per branch (ExpectedSchema)
 scripts/                  Dev scripts (dataset builder)
 e2e/                      End-to-end tests over the fixture
 tests/                    Repo-level tooling tests (e.g. package boundaries)
@@ -149,6 +153,8 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 - **Two tsconfigs per package.** `tsconfig.json` is used by the editor, typecheck and lint, and covers `src/` including tests (`noEmit`). `tsconfig.build.json` is the composite build project: it excludes `*.test.ts`, emits to `dist/` and declares project references to the packages it depends on. The root `tsconfig.json` covers root-level tooling files and `tests/`; `tsconfig.build.json` is the build solution.
 - **Adding a package:** copy an existing package's `package.json`, `tsconfig.json` and `tsconfig.build.json`; add it to the root `tsconfig.build.json` references and to `projects` in `vitest.config.ts`; add ESLint boundary rules if it has import restrictions.
 - **Tests** live next to the code as `src/**/*.test.ts`. Repo-level tooling tests go in `tests/`.
+- **Docker tests** are named `*.docker.test.ts`. They are excluded from `pnpm test` and `pnpm check` and run with `pnpm test:docker` (`vitest.docker.config.ts`, serial, long timeouts). Every container they create is removed in `finally`.
+- **The fixture** is ground truth: changing the sample app or a branch overlay means updating `fixtures/expected.json` in the same PR. Its lockfile is regenerated with `pnpm install --lockfile-only` in a copy outside the workspace; never install or run the fixture app on the host.
 - **Imports** use explicit `.js` extensions for relative paths (NodeNext), `import type` for types, and the order enforced by `import-x/order`.
 - **Lint suppressions** need a reason: `// eslint-disable-next-line <rule> -- <why>`. Unused or undescribed directives fail lint.
 - **Dependency build scripts** are denied by default (`allowBuilds` in `pnpm-workspace.yaml`). Allow one only with a reason.
