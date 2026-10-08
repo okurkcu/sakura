@@ -11,7 +11,9 @@ import {
   createEnvironmentStage,
   createExecaExec,
   createFetchHttpClient,
+  createGitHubClient,
   createImpactStage,
+  createInterpretStage,
   createPlaywrightLauncher,
   createRecipeStage,
   createLogger,
@@ -102,6 +104,9 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
   const cwd = process.cwd();
   const cache = cacheDir(env);
   const http = createFetchHttpClient();
+  const github = createGitHubClient(
+    env.GITHUB_TOKEN === undefined || env.GITHUB_TOKEN === '' ? {} : { token: env.GITHUB_TOKEN },
+  );
   return {
     clock: systemClock,
     fs: nodeFileSystem,
@@ -115,6 +120,7 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
       probeUi: createUiProbeStage({ browser: createPlaywrightLauncher(), fs: nodeFileSystem }),
       probeApi: createApiProbeStage({ http, fs: nodeFileSystem, llm }),
       diff: createDiffStage({ fs: nodeFileSystem, images: pngCodec }),
+      interpret: createInterpretStage({ llm, exec, github }),
     }),
     createLogger: (level) => createLogger({ level }),
     pricingPath: env.BDIFF_PRICING ?? path.join(REPO_ROOT, 'config', 'pricing.json'),

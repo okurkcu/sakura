@@ -176,6 +176,8 @@ describe('environment stage on the fixture (@docker)', () => {
     expect(await leftovers(`bdiff-${result.record.runId}`)).toEqual([]);
   });
 
+  // A branch without findings: every real stage runs, but the interpret stage needs no LLM call
+  // (CI has no API key, and tests never call the real API).
   it('runs bdiff end to end on the fixture: exit 0, a record, and nothing left behind', async () => {
     const out = path.join(root, 'out-cli-ok');
     const result = await exec.run(
@@ -191,7 +193,7 @@ describe('environment stage on the fixture (@docker)', () => {
         '--base',
         'main',
         '--head',
-        'pr/ui-change',
+        'pr/refactor-no-change',
         '--out',
         out,
       ],
