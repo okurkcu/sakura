@@ -2,3 +2,4 @@ dist/
 coverage/
 .bdiff/
 pnpm-lock.yaml
+**/__snapshots__/
