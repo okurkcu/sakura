@@ -39,7 +39,7 @@ fixtures/                 @bdiff/fixtures workspace package
   build-fixture-repo.ts   Builds a deterministic git repo with known PR branches
   expected.json           Expected changed files, impact + findings per branch (ExpectedSchema)
 scripts/                  Dev scripts (dataset builder)
-e2e/                      End-to-end tests over the fixture
+e2e/                      @bdiff/e2e: stage integration and end-to-end tests over the fixture (real git)
 tests/                    Repo-level tooling tests (e.g. package boundaries)
 ```
 
@@ -145,6 +145,7 @@ interface LlmClient {
     run.json
     compose.yml
     logs/
+    worktrees/<side>/      (removed by cleanup when the run ends)
     ui/<probeRun>/<route-slug>-<hash8>.png
     api/<probeRun>/<request-slug>-<hash8>.json
     diff/
@@ -152,6 +153,8 @@ interface LlmClient {
 ```
 
 All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root, runId)`) — never build path strings ad hoc. Routes and request keys become a readable slug plus 8 hex chars of their SHA-256, so distinct keys never collide and untrusted keys can't escape the run directory. Run ids are lowercase ULIDs.
+
+**Repo cache.** The workspace stage keeps one bare clone per repository in `~/.cache/bdiff/repos/<slug>-<hash8>` (`BDIFF_CACHE_DIR` overrides) and only fetches on later runs. All git calls go through `createGit` (`workspace/git.ts`): no user hooks, no credential prompts, no LFS downloads, https and local transports only.
 
 **Metrics.** A run's numbers are accumulated by a `RunRecorder` (stage timings via its `timer`, LLM usage via `recordLlmUsage`, compute seconds, counts) and persisted by `MetricsStore` (`run.json` atomically, one `results.csv` row). LLM cost comes only from `config/pricing.json` through `CostCalculator`; never hardcode a price. `run.json` fields, CSV columns and the pricing rules are documented in `docs/metrics.md`; a test fails if the documented CSV columns drift from the code.
 
@@ -162,6 +165,7 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 - **Two tsconfigs per package.** `tsconfig.json` is used by the editor, typecheck and lint, and covers `src/` including tests (`noEmit`). `tsconfig.build.json` is the composite build project: it excludes `*.test.ts`, emits to `dist/` and declares project references to the packages it depends on. The root `tsconfig.json` covers root-level tooling files and `tests/`; `tsconfig.build.json` is the build solution.
 - **Adding a package:** copy an existing package's `package.json`, `tsconfig.json` and `tsconfig.build.json`; add it to the root `tsconfig.build.json` references and to `projects` in `vitest.config.ts`; add ESLint boundary rules if it has import restrictions.
 - **Tests** live next to the code as `src/**/*.test.ts`. Repo-level tooling tests go in `tests/`.
+- **Stage tests** run a single stage outside the pipeline with `createTestStageContext()` from `@bdiff/core/testing` (fake clock, test logger, recorded cleanup hooks). Tests against the fixture repository live in `e2e/`.
 - **Docker tests** are named `*.docker.test.ts`. They are excluded from `pnpm test` and `pnpm check` and run with `pnpm test:docker` (`vitest.docker.config.ts`, serial, long timeouts). Every container they create is removed in `finally`.
 - **The fixture** is ground truth: changing the sample app or a branch overlay means updating `fixtures/expected.json` in the same PR. Its lockfile is regenerated with `pnpm install --lockfile-only` in a copy outside the workspace; never install or run the fixture app on the host.
 - **Imports** use explicit `.js` extensions for relative paths (NodeNext), `import type` for types, and the order enforced by `import-x/order`.
