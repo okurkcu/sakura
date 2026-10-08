@@ -35,6 +35,9 @@ describe('createArtifactPaths', () => {
     expect(paths.apiResponse('head', 'GET /api/orders/latest')).toMatch(
       new RegExp(`^${runDir}/api/head/get-api-orders-latest-[0-9a-f]{8}\\.json$`),
     );
+    expect(paths.diffOverlay('/login')).toMatch(
+      new RegExp(`^${runDir}/diff/ui/login-[0-9a-f]{8}\\.png$`),
+    );
   });
 
   it('rejects a run id that is not a ULID', () => {
