@@ -15,7 +15,12 @@ import { toFailureRecord } from '../errors/failure-record.js';
 /** How a run ended. */
 export type RunOutcome =
   | { readonly status: 'success' }
-  | { readonly status: 'failed'; readonly error: unknown }
+  | {
+      readonly status: 'failed';
+      readonly error: unknown;
+      /** Stage that was running; defaults to the last stage that failed. */
+      readonly stage?: StageName;
+    }
   | { readonly status: 'skipped'; readonly reason: string };
 
 /** Inputs for {@link createRunRecorder}. */
@@ -45,8 +50,13 @@ export interface RunRecorder {
   /** Adds to the probe and diff counts. */
   addCounts(counts: Partial<RunCounts>): void;
   /**
-   * Produces the final record. For a failed run, the failure's stage is the error's own stage or,
-   * failing that, the last stage that failed. Can be called once.
+   * The record as it would be if the run ended now with `outcome`, without ending it. Used to
+   * render the report before the final record exists.
+   */
+  preview(outcome: RunOutcome): RunRecord;
+  /**
+   * Produces the final record. For a failed run, the failure's stage is the error's own stage,
+   * else the outcome's `stage`, else the last stage that failed. Can be called once.
    */
   finish(outcome: RunOutcome): RunRecord;
 }
@@ -79,6 +89,43 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
   };
   let finished = false;
 
+  const build = (outcome: RunOutcome): RunRecord => {
+    const stageTimings = timer.timings();
+    const base = {
+      schemaVersion: RUN_RECORD_SCHEMA_VERSION,
+      runId,
+      toolVersion: options.toolVersion,
+      target,
+      startedAt: startedAt.toISOString(),
+      finishedAt: clock.now().toISOString(),
+      durationMs: Math.round(clock.monotonicMs() - startedMs),
+      stageTimings: [...stageTimings],
+      computeSeconds: { ...computeSeconds },
+      llmUsage: [...llmUsage],
+      totals: computeTotals(llmUsage, computeSeconds),
+      counts: { ...counts },
+    };
+    switch (outcome.status) {
+      case 'success':
+        return RunRecordSchema.parse({ ...base, status: 'success' });
+      case 'skipped':
+        return RunRecordSchema.parse({
+          ...base,
+          status: 'skipped',
+          skip: { reason: outcome.reason },
+        });
+      case 'failed': {
+        const failedStage: StageName | undefined =
+          outcome.stage ?? stageTimings.findLast((timing) => timing.outcome === 'failed')?.stage;
+        return RunRecordSchema.parse({
+          ...base,
+          status: 'failed',
+          failure: toFailureRecord(outcome.error, failedStage),
+        });
+      }
+    }
+  };
+
   return {
     runId,
     timer,
@@ -96,47 +143,13 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
         counts[key] += partial[key] ?? 0;
       }
     },
+    preview: (outcome) => build(outcome),
     finish: (outcome) => {
       if (finished) {
         throw new BdiffError('INTERNAL', `Run ${runId} was already finished`);
       }
       finished = true;
-
-      const stageTimings = timer.timings();
-      const base = {
-        schemaVersion: RUN_RECORD_SCHEMA_VERSION,
-        runId,
-        toolVersion: options.toolVersion,
-        target,
-        startedAt: startedAt.toISOString(),
-        finishedAt: clock.now().toISOString(),
-        durationMs: Math.round(clock.monotonicMs() - startedMs),
-        stageTimings: [...stageTimings],
-        computeSeconds: { ...computeSeconds },
-        llmUsage: [...llmUsage],
-        totals: computeTotals(llmUsage, computeSeconds),
-        counts: { ...counts },
-      };
-      switch (outcome.status) {
-        case 'success':
-          return RunRecordSchema.parse({ ...base, status: 'success' });
-        case 'skipped':
-          return RunRecordSchema.parse({
-            ...base,
-            status: 'skipped',
-            skip: { reason: outcome.reason },
-          });
-        case 'failed': {
-          const lastFailed: StageName | undefined = stageTimings.findLast(
-            (timing) => timing.outcome === 'failed',
-          )?.stage;
-          return RunRecordSchema.parse({
-            ...base,
-            status: 'failed',
-            failure: toFailureRecord(outcome.error, lastFailed),
-          });
-        }
-      }
+      return build(outcome);
     },
   };
 }

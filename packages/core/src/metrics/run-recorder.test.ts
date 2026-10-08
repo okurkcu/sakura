@@ -172,3 +172,32 @@ describe('createRunRecorder', () => {
     ).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }));
   });
 });
+
+describe('createRunRecorder: outcome stage and preview', () => {
+  it("uses the outcome's stage over the last failed timing", async () => {
+    const { recorder } = createTestRunRecorder();
+    await recorder.timer
+      .measure('report', () => Promise.reject(new Error('report crashed')))
+      .catch(() => undefined);
+
+    const record = recorder.finish({
+      status: 'failed',
+      error: new Error('diff crashed'),
+      stage: 'diff',
+    });
+
+    expect(record).toMatchObject({ failure: { stage: 'diff', message: 'Error: diff crashed' } });
+  });
+
+  it('previews the record without finishing the run', () => {
+    const { recorder, clock } = createTestRunRecorder();
+    clock.advance(100);
+
+    const preview = recorder.preview({ status: 'success' });
+    clock.advance(50);
+    const final = recorder.finish({ status: 'success' });
+
+    expect(preview.durationMs).toBe(100);
+    expect(final.durationMs).toBe(150);
+  });
+});

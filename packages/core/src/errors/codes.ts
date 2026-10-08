@@ -17,6 +17,8 @@ export const ErrorCodeSchema = z.enum([
   'GIT_FAILED',
   'FS_FAILED',
   'ABORTED',
+  'RUN_TIMEOUT',
+  'CLEANUP_FAILED',
   'INVALID_INPUT',
   'CONFIG_INVALID',
   'METRICS_CSV_MISMATCH',
