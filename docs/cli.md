@@ -30,7 +30,7 @@ Other environment variables:
 | `BDIFF_TOOL_VERSION` | Overrides the tool version recorded in `run.json` (otherwise `GITHUB_SHA`, then the git SHA of the bdiff checkout, `-dirty` if it has uncommitted changes).               |
 | `BDIFF_PRICING`      | Path of the pricing table; default `config/pricing.json` in the bdiff checkout.                                                                                           |
 | `BDIFF_CACHE_DIR`    | Cache of bare repository clones (`repos/`) and detected recipes (`recipes/`), reused across runs. Default `$XDG_CACHE_HOME/bdiff`, else `~/.cache/bdiff`. Safe to delete. |
-| `ANTHROPIC_API_KEY`  | Claude API key for the LLM stages. Never logged or recorded.                                                                                                              |
+| `ANTHROPIC_API_KEY`  | Claude API key for the LLM stages (an `ant auth login` profile also works). Only needed when a run calls the LLM. Never logged or recorded.                               |
 | `GITHUB_TOKEN`       | Optional GitHub token for fetching PR text. Never logged or recorded.                                                                                                     |
 
 ## Output
@@ -59,3 +59,14 @@ docker compose ls --all --quiet --filter name=bdiff- | xargs -n1 -I{} docker com
 ```
 
 Each app container gets 2 CPUs and 4 GB of memory; its port is published on `127.0.0.1` only. Setup (install, database, build, start) has 10 minutes. The logs of each side are saved in `runs/<runId>/logs/{base,head}.log`.
+
+## LLM configuration
+
+`config/llm.json` sets the model of each tier, how much it thinks (`effort`), and the request timeout and retry count:
+
+| Tier    | Model               | Used for                                        |
+| ------- | ------------------- | ----------------------------------------------- |
+| `fast`  | `claude-haiku-5-5`  | Default: high-volume, simple structured calls.  |
+| `smart` | `claude-sonnet-5-5` | Hard cases, e.g. interpreting breaking changes. |
+
+The `smart` tier sets `"fallbacks": "default"`: if Claude Sonnet 5.5 declines a request on policy grounds (cyber or frontier-LLM categories), the Claude API retries it on Claude Sonnet 5 within the same call. Each attempt is recorded and priced at its own model. Every configured model, and every fallback model, must have a price in `config/pricing.json`; bdiff refuses to start a call it cannot price. The `--budget` cap is checked before every request.

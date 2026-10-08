@@ -125,14 +125,17 @@ interface Finding {
 }
 
 interface LlmClient {
-  complete<T>(req: {
-    purpose: string;
-    system: string;
-    messages: Message[];
-    schema: z.ZodType<T>;
-    tier: 'fast' | 'smart';
-    maxOutputTokens: number;
-  }): Promise<{ data: T; usage: LlmUsage }>;
+  complete<T>(
+    req: {
+      purpose: string;
+      system: string;
+      messages: LlmMessage[];
+      schema: z.ZodType<T>;
+      tier: 'fast' | 'smart';
+      maxOutputTokens: number;
+    },
+    ctx: LlmCallContext, // budget, recordLlmUsage, signal, logger: a stage passes its StageContext
+  ): Promise<{ data: T; usage: LlmUsage }>;
 }
 ```
 
@@ -159,6 +162,8 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 **Recipes.** The recipe stage turns the head checkout into a `Recipe` with pure detectors (`packages/core/src/recipe/detect-*.ts`) over a `RepoFiles` snapshot; each detector is unit-tested with in-memory file trees (`createRepoFiles`). Commands are argv arrays, never shell strings: `installCmd` runs in `installRoot`, everything else in `appRoot`. Only example env files are read, never a real `.env`. Recipes are cached in `~/.cache/bdiff/recipes/` keyed by repository and invalidated by a fingerprint of manifests, lockfiles and Node version files; entries with `source: 'llm'` (repair loop) are reused the same way. Missing information throws `SETUP_UNSUPPORTED`.
 
 **Environments.** The environment stage writes `runs/<id>/compose.yml` (project `bdiff-<runId>`), copies each worktree into its app container with `docker compose cp` (never a bind mount), and runs the recipe through a generated shell script whose arguments are all quoted; each setup phase exits with its own code (`SETUP_EXIT_CODES`), mapped to `SETUP_*_FAILED`. The host only ever runs `docker` (and `git` in the workspace stage). Every `$` in the compose file is escaped because env values come from the repository. The `docker compose down -v` cleanup hook is registered before anything is created.
+
+**LLM calls.** Every call goes through `LlmClient.complete(request, ctx)` (`packages/core/src/llm`); stages pass their `StageContext` as `ctx`. The client checks the budget before every request (retries included), records every attempt's usage, sends the zod schema as the structured output format, validates the answer with zod and retries once with the validation problem before `LLM_INVALID_OUTPUT`. Refusals become `LLM_REFUSED`; branch on errors, never read content of a refused response. Models, effort and server-side fallback per tier live in `config/llm.json`; every model a tier or its fallback can use must be in `config/pricing.json`. Never send `temperature`, `top_p`, `top_k` or an assistant prefill (current models reject them). Prompts live in `packages/core/src/llm/prompts/*.ts` as typed functions; keep run-specific data out of `system` so it stays cacheable. Tests use `FakeLlmClient` from `@bdiff/core/testing`, or `createAnthropicLlmClient({ fetch })` with a fake transport: never the real API.
 
 **Metrics.** A run's numbers are accumulated by a `RunRecorder` (stage timings via its `timer`, LLM usage via `recordLlmUsage`, compute seconds, counts) and persisted by `MetricsStore` (`run.json` atomically, one `results.csv` row). LLM cost comes only from `config/pricing.json` through `CostCalculator`; never hardcode a price. `run.json` fields, CSV columns and the pricing rules are documented in `docs/metrics.md`; a test fails if the documented CSV columns drift from the code.
 
@@ -213,7 +218,7 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 - All calls go through `LlmClient`; prompts live in `llm/prompts/*.ts` as typed functions.
 - Every call is budget-checked before it is made and its usage is recorded.
 - The LLM interprets observed evidence; it never decides whether something changed. Diffing is deterministic code.
-- Models are configured, not hardcoded: `fast` tier (Haiku) by default, `smart` tier (Sonnet) for hard cases.
+- Models are configured, not hardcoded (`config/llm.json`): `fast` tier (Claude Haiku 5.5) by default, `smart` tier (Claude Sonnet 5.5, with server-side fallback) for hard cases.
 
 **Testing**
 
