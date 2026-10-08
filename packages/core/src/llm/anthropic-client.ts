@@ -233,7 +233,12 @@ function toBdiffError(error: unknown, signal: AbortSignal): BdiffError {
       },
     });
   }
-  if (error instanceof Anthropic.AnthropicError && /api ?key|auth/i.test(error.message)) {
+  // Missing credentials surface as a plain Error from the SDK's credential chain, not an
+  // AnthropicError, before any request is sent.
+  if (
+    error instanceof Error &&
+    /could not resolve authentication method|api ?key/i.test(error.message)
+  ) {
     return new BdiffError(
       'LLM_UNAVAILABLE',
       'No Claude API credentials: set ANTHROPIC_API_KEY or run `ant auth login`',

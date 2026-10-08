@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { createAnthropicLlmClient, tokenUsagesOf } from './anthropic-client.js';
@@ -407,6 +407,28 @@ describe('createAnthropicLlmClient', () => {
 
     expect(error.code).toBe(code);
     expect(`${error.message} ${JSON.stringify(error.details)}`).not.toContain('SECRET');
+  });
+
+  it('reports missing credentials as LLM_UNAVAILABLE, without sending a request', async () => {
+    // No key, token or profile anywhere the SDK looks.
+    for (const name of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_PROFILE']) {
+      vi.stubEnv(name, undefined);
+    }
+    vi.stubEnv('HOME', path.join(import.meta.dirname, 'no-such-home'));
+    vi.stubEnv('XDG_CONFIG_HOME', path.join(import.meta.dirname, 'no-such-config'));
+    const api = fakeApi({ body: message(VALID) });
+    const { ctx } = context();
+    try {
+      const error = await failure(
+        createAnthropicLlmClient({ config, fetch: api.fetchFn }).complete(request(), ctx),
+      );
+
+      expect(error.code).toBe('LLM_UNAVAILABLE');
+      expect(error.message).toContain('ANTHROPIC_API_KEY');
+      expect(api.requests).toEqual([]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('reports the status and request id of a failed request', async () => {
