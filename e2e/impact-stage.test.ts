@@ -60,7 +60,7 @@ describe('impact stage on the fixture repository', () => {
         cwd: root,
       }).run({ repoUrl: fixture.path, baseRef: 'main', headRef: branch }, test.ctx);
       const plan = ImpactPlanSchema.parse(await impact.run({ workspace }, test.ctx));
-      const want = expected.branches[branch]?.impact;
+      const want = expected.branches[branch].impact;
 
       expect({
         ...(plan.skip === undefined ? {} : { skip: plan.skip }),
