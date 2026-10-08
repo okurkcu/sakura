@@ -17,7 +17,8 @@
     "test:coverage": "vitest run --coverage",
     "test:docker": "vitest run --config vitest.docker.config.ts",
     "fixture:build": "tsx --conditions=bdiff-source fixtures/build-fixture-repo.ts",
-    "check": "pnpm lint && pnpm typecheck && pnpm test"
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "bdiff": "tsx --conditions=bdiff-source packages/cli/src/main.ts"
   },
   "devDependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "^4.8.1",
