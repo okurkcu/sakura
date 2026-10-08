@@ -9,8 +9,11 @@ import { createStubStages } from './stub-stages.js';
 import type { StageName } from '../domain/stage.js';
 import { abortError } from '../errors/abort.js';
 import { BdiffError } from '../errors/bdiff-error.js';
+import { createInterpretStage } from '../interpret/interpret-stage.js';
 import type { RunRecord } from '../metrics/run-record.js';
 import { FakeClock } from '../testing/fake-clock.js';
+import { FakeExec } from '../testing/fake-exec.js';
+import { FakeLlmClient } from '../testing/fake-llm-client.js';
 import { createMemoryMetricsStore } from '../testing/memory-metrics-store.js';
 import { createTestCostCalculator, TEST_RUN_ID, TEST_TARGET } from '../testing/run-records.js';
 import { createTestLogger } from '../testing/test-logger.js';
@@ -172,6 +175,26 @@ describe('runPipeline', () => {
     });
     expect(result.record.apiRequests).toEqual([request]);
     expect(store.written[0]?.apiRequests).toEqual([request]);
+  });
+
+  it('makes no LLM call for a run without findings: its record shows no LLM usage', async () => {
+    const clock = new FakeClock();
+    const llm = new FakeLlmClient();
+    const interpret = createInterpretStage({
+      llm,
+      exec: new FakeExec(),
+      github: { getPullRequest: () => Promise.reject(new Error('not used')) },
+    });
+    const { stages } = recordingStages(clock, { diff: () => Promise.resolve([]) });
+    const { deps: d } = deps(clock);
+
+    const { result } = await runPipeline(TEST_TARGET, { ...stages, interpret }, d);
+
+    expect(result.record.status).toBe('success');
+    expect(result.record.llmUsage).toEqual([]);
+    expect(result.record.totals).toMatchObject({ llmCalls: 0, llmCostUsd: 0 });
+    expect(result.interpretation).toMatchObject({ source: 'no-findings' });
+    expect(llm.calls).toEqual([]);
   });
 
   it('stops at the first failing stage, runs cleanup, reports and records the failure', async () => {
