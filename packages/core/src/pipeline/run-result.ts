@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
+import { RunningEnvironmentSchema } from '../domain/environment.js';
 import { FindingSchema } from '../domain/finding.js';
 import {
   ApiCaptureSchema,
   ImpactPlanSchema,
   InterpretationSchema,
-  RunningEnvironmentSchema,
   UiCaptureSchema,
 } from '../domain/placeholders.js';
 import { RecipeSchema } from '../domain/recipe.js';
