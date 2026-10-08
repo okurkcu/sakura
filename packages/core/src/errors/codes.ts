@@ -17,6 +17,8 @@ export const ErrorCodeSchema = z.enum([
   'FS_FAILED',
   'ABORTED',
   'INVALID_INPUT',
+  'CONFIG_INVALID',
+  'METRICS_CSV_MISMATCH',
   'INTERNAL',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
