@@ -75,7 +75,9 @@ describe('fixture app in node:22 (@docker)', () => {
       const container = `bdiff-fixture-test-${randomBytes(4).toString('hex')}`;
       const routes = [
         ...expected.pages,
-        ...expected.endpoints.map((endpoint) => endpoint.replace(/^GET /, '')),
+        ...expected.endpoints.flatMap((endpoint) =>
+          endpoint.startsWith('GET ') ? [endpoint.slice('GET '.length)] : [],
+        ),
       ];
 
       try {

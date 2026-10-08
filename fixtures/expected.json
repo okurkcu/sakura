@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "baseBranch": "main",
   "pages": ["/", "/dashboard", "/login", "/orders", "/status"],
-  "endpoints": ["GET /api/health", "GET /api/orders/latest"],
+  "endpoints": ["GET /api/health", "GET /api/orders/latest", "POST /api/feedback"],
   "noisyRoutes": ["/dashboard"],
   "branches": {
     "pr/ui-change": {
