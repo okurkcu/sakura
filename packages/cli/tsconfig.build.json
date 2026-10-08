@@ -9,7 +9,12 @@
   },
   "exclude": ["src/**/*.test.ts"],
   "references": [
-    { "path": "../core/tsconfig.build.json" },
-    { "path": "../report/tsconfig.build.json" }
-  ]
+    {
+      "path": "../core/tsconfig.build.json"
+    },
+    {
+      "path": "../report/tsconfig.build.json"
+    }
+  ],
+  "include": ["src"]
 }

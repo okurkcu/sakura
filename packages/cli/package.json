@@ -4,6 +4,9 @@
   "private": true,
   "description": "bdiff command-line entry point and composition root.",
   "type": "module",
+  "bin": {
+    "bdiff": "./dist/main.js"
+  },
   "exports": {
     ".": {
       "bdiff-source": "./src/index.ts",
@@ -13,6 +16,8 @@
   },
   "dependencies": {
     "@bdiff/core": "workspace:*",
-    "@bdiff/report": "workspace:*"
+    "@bdiff/report": "workspace:*",
+    "commander": "^15.0.0",
+    "zod": "^4.6.5"
   }
 }
