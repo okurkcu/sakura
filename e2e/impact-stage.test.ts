@@ -23,6 +23,7 @@ import {
 } from '@bdiff/core/testing';
 import { buildFixtureRepo, loadExpected, PR_BRANCHES } from '@bdiff/fixtures';
 import type { Expected, FixtureRepo } from '@bdiff/fixtures';
+import { createReportStage } from '@bdiff/report';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const exec = createExecaExec();
@@ -98,6 +99,7 @@ describe('impact stage on the fixture repository', () => {
         impact,
         recipe: tracked(stubs.recipe),
         environment: tracked(stubs.environment),
+        report: createReportStage({ fs: nodeFileSystem }),
       },
       {
         clock: systemClock,
@@ -115,5 +117,9 @@ describe('impact stage on the fixture repository', () => {
 
     expect(result.record).toMatchObject({ status: 'skipped', skip: { reason: 'docs-only' } });
     expect(ran).toEqual([]);
+    const report = await nodeFileSystem.readFile(
+      path.join(root, 'out-pipeline', 'runs', result.record.runId, 'report', 'index.html'),
+    );
+    expect(report).toContain('<h2>Skipped: docs-only</h2>');
   });
 });
