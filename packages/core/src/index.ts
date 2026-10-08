@@ -5,6 +5,7 @@ export * from './adapters/index.js';
 export * from './domain/index.js';
 export * from './environment/index.js';
 export * from './errors/index.js';
+export * from './impact/index.js';
 export * from './llm/index.js';
 export * from './metrics/index.js';
 export * from './pipeline/index.js';

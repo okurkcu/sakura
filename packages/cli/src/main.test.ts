@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -95,25 +95,37 @@ describe('bdiff binary', () => {
   let root: string;
   let out: string;
   let cache: string;
+  let repo: string;
   let runArgs: string[];
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), 'bdiff-bin-'));
     out = path.join(root, 'out');
     cache = path.join(root, 'cache');
-    const repo = path.join(root, 'repo');
+    repo = path.join(root, 'repo');
     await mkdir(repo);
     await git(repo, 'init', '--quiet', '--initial-branch', 'main');
+    await mkdir(path.join(repo, 'app'));
+    await mkdir(path.join(repo, 'prisma'));
     await writeFile(path.join(repo, 'README.md'), 'base\n');
     await writeFile(
       path.join(repo, 'package.json'),
-      JSON.stringify({ scripts: { build: 'vite build' }, dependencies: { vite: '6.0.0' } }),
+      JSON.stringify({ scripts: { build: 'next build' }, dependencies: { next: '16.0.0' } }),
     );
+    // A MySQL datasource: bdiff can't provide one, so the recipe stage records SETUP_UNSUPPORTED.
+    await writeFile(
+      path.join(repo, 'prisma', 'schema.prisma'),
+      'datasource db {\n  provider = "mysql"\n  url = env("DATABASE_URL")\n}\n',
+    );
+    await writeFile(path.join(repo, 'app', 'page.tsx'), 'export default () => "base";\n');
     await git(repo, 'add', '--all');
     await git(repo, 'commit', '--quiet', '-m', 'base');
     await git(repo, 'checkout', '--quiet', '-b', 'pr/1');
-    await writeFile(path.join(repo, 'README.md'), 'head\n');
+    await writeFile(path.join(repo, 'app', 'page.tsx'), 'export default () => "head";\n');
     await git(repo, 'commit', '--quiet', '-am', 'head');
+    await git(repo, 'checkout', '--quiet', '-b', 'pr/docs', 'main');
+    await writeFile(path.join(repo, 'README.md'), 'head\n');
+    await git(repo, 'commit', '--quiet', '-am', 'docs');
     runArgs = ['run', '--repo', repo, '--base', 'main', '--head', 'pr/1'];
   });
 
@@ -123,9 +135,10 @@ describe('bdiff binary', () => {
   });
 
   // The real stages need Docker from the environment stage on; the full successful run is covered
-  // by e2e/environment-stage.docker.test.ts. Without Docker, a repository that is not a Next.js app
-  // proves the binary wires the real workspace and recipe stages and records the failure.
-  it('runs the real workspace and recipe stages and records an unsupported repository (exit 1)', async () => {
+  // by e2e/environment-stage.docker.test.ts. Without Docker, a Next.js app whose database bdiff
+  // can't provide proves the binary wires the real workspace, impact and recipe stages and records
+  // the failure.
+  it('runs the real workspace, impact and recipe stages and records an unsupported repository (exit 1)', async () => {
     const run = spawnTs(mainScript, [...runArgs, '--out', out], cache);
 
     expect(await run.exitCode, run.stderr()).toBe(1);
@@ -133,7 +146,21 @@ describe('bdiff binary', () => {
     expect(await readdir(out)).toEqual(['results.csv', 'runs']);
     const [runId] = await readdir(path.join(out, 'runs'));
     expect(await readdir(path.join(out, 'runs', runId ?? ''))).toEqual(['run.json']);
+    expect(
+      JSON.parse(await readFile(path.join(out, 'runs', runId ?? '', 'run.json'), 'utf8')),
+    ).toMatchObject({ failure: { stage: 'recipe', details: { provider: 'mysql' } } });
     expect(await readdir(path.join(cache, 'repos'))).toHaveLength(1);
+  });
+
+  it('skips a docs-only PR at the impact stage (exit 0)', async () => {
+    const run = spawnTs(
+      mainScript,
+      ['run', '--repo', repo, '--base', 'main', '--head', 'pr/docs', '--out', out],
+      cache,
+    );
+
+    expect(await run.exitCode, run.stderr()).toBe(0);
+    expect(run.stdout()).toContain('bdiff: skipped: docs-only');
   });
 
   it('exits 2 on invalid usage', async () => {

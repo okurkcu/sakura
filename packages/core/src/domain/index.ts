@@ -1,5 +1,6 @@
 export * from './environment.js';
 export * from './finding.js';
+export * from './impact.js';
 export * from './json.js';
 export * from './placeholders.js';
 export * from './recipe.js';

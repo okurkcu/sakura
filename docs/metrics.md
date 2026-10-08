@@ -26,7 +26,7 @@ Written atomically: a temp file is written next to it and renamed, so a reader n
 | `durationMs`     | number                                  | Wall time of the run, from a monotonic clock.                                                                                               |
 | `status`         | `success` \| `failed` \| `skipped`      | How the run ended.                                                                                                                          |
 | `failure`        | object, only when `status` is `failed`  | `code` (error code), `stage`, `message`, `details` (JSON) and `causes` (the error's cause chain).                                           |
-| `skip`           | object, only when `status` is `skipped` | `reason`, e.g. a docs-only PR.                                                                                                              |
+| `skip`           | object, only when `status` is `skipped` | `reason`: `no-changes`, `docs-only`, `tests-only`, `ci-only`, `lockfile-only` or `non-runtime-only` (a mix of those kinds).                 |
 | `stageTimings`   | array                                   | One entry per stage execution, in start order: `stage`, `durationMs`, `outcome` (`success` \| `failed`). A stage may appear more than once. |
 | `computeSeconds` | `{ base, head }`                        | Container CPU time per side, in seconds.                                                                                                    |
 | `llmUsage`       | array                                   | One entry per LLM call: `purpose`, `model`, token counts (see below) and `costUsd`.                                                         |
@@ -60,7 +60,7 @@ The first line is the header. Rows are RFC 4180: fields containing a comma, quot
 | `failure_code`              | Error code of a failed run.                                                               |
 | `failure_stage`             | Stage that failed.                                                                        |
 | `failure_message`           | Error message of a failed run.                                                            |
-| `skip_reason`               | Why the run was skipped.                                                                  |
+| `skip_reason`               | Why the run was skipped: the `skip.reason` of `run.json`.                                 |
 | `repo_url`                  | Repository URL or path.                                                                   |
 | `base_ref`                  | Base ref as given.                                                                        |
 | `head_ref`                  | Head ref as given.                                                                        |
