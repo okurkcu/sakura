@@ -454,9 +454,9 @@ describe('createAnthropicLlmClient', () => {
         ...stubs,
         interpret: {
           name: 'interpret',
-          run: async (_input, ctx) => {
+          run: async (input, ctx) => {
             await llm.complete(request({ tier: 'smart' }), ctx);
-            return {};
+            return stubs.interpret.run(input, ctx);
           },
         },
       },

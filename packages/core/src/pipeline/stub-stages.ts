@@ -75,7 +75,18 @@ export function createStubStages(): PipelineStages {
       run: () => Promise.resolve({ requests: [], captures: [], notProbed: [] }),
     },
     diff: { name: 'diff', run: () => Promise.resolve([]) },
-    interpret: { name: 'interpret', run: () => Promise.resolve({}) },
+    interpret: {
+      name: 'interpret',
+      run: () =>
+        Promise.resolve({
+          source: 'no-findings',
+          summary: [{ text: 'Stub interpretation.', findingIds: [] }],
+          unexpected: [],
+          riskLevel: 'low',
+          coverageNote: '',
+          reviewerChecklist: [],
+        }),
+    },
     report: { name: 'report', run: () => Promise.resolve() },
   };
 }

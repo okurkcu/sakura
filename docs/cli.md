@@ -96,6 +96,10 @@ docker compose ls --all --quiet --filter name=bdiff- | xargs -n1 -I{} docker com
 
 Each app container gets 2 CPUs and 4 GB of memory; its port is published on `127.0.0.1` only. Setup (install, database, build, start) has 10 minutes. The logs of each side are saved in `runs/<runId>/logs/{base,head}.log`.
 
+## Interpretation
+
+When a run has findings, the interpret stage asks the LLM to summarize them and to flag those the pull request's stated intent does not account for, with a risk level, a coverage note and up to three things to check by hand. The intent is read from GitHub when `--pr` is given for a github.com repository (`GITHUB_TOKEN` is optional for public repositories), else from the messages of the commits between base and head. It uses the `fast` tier, or `smart` when a finding is breaking or there are more than 15. A run without findings makes no LLM call. Without credentials, a run with findings fails at `interpret` with `LLM_UNAVAILABLE`; its findings are still recorded.
+
 ## LLM configuration
 
 `config/llm.json` sets the model of each tier, how much it thinks (`effort`), and the request timeout and retry count:

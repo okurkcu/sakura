@@ -186,6 +186,8 @@ export async function runPipeline(
         target,
         workspace,
         impact,
+        ui,
+        api,
         findings,
       });
       outcome = { status: 'success' };
