@@ -26,6 +26,8 @@ import { buildFixtureRepo } from '@bdiff/fixtures';
 import type { FixtureRepo } from '@bdiff/fixtures';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { composeLeftovers } from './compose-leftovers.js';
+
 const exec = createExecaExec();
 const http = createFetchHttpClient();
 const signal = new AbortController().signal;
@@ -63,19 +65,7 @@ async function git(cwd: string, ...args: string[]): Promise<void> {
 }
 
 /** Every container, network and volume of a compose project still present. */
-async function leftovers(project: string): Promise<string[]> {
-  const filter = `label=com.docker.compose.project=${project}`;
-  const found: string[] = [];
-  for (const args of [
-    ['ps', '--all', '--quiet', '--filter', filter],
-    ['network', 'ls', '--quiet', '--filter', filter],
-    ['volume', 'ls', '--quiet', '--filter', filter],
-  ]) {
-    const result = await exec.run('docker', args, { timeoutMs: 30_000, signal });
-    found.push(...result.stdout.split('\n').filter((line) => line.trim() !== ''));
-  }
-  return found;
-}
+const leftovers = (project: string): Promise<string[]> => composeLeftovers(exec, project, signal);
 
 describe('environment stage on the fixture (@docker)', () => {
   let root: string;

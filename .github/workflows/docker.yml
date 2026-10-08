@@ -1,7 +1,7 @@
 name: Docker tests
 
-# Integration tests that build and run the fixture app in containers. Slower than CI, so they
-# run only when code that affects them changes.
+# Integration tests that build and run the fixture app in containers, and drive a real Chromium.
+# Slower than CI, so they run only when code that affects them changes.
 on:
   push:
     branches: [main]
@@ -39,6 +39,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - run: pnpm browser:install --with-deps
 
       - run: docker pull --quiet node:22
 
