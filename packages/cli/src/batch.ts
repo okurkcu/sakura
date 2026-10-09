@@ -20,6 +20,20 @@ import { latestByEntry } from './run-records.js';
 /** How a batch treats entries that already have a record for this tool version. */
 export type BatchMode = 'fresh' | 'resume' | 'force';
 
+/** One of `count` equal parts of a batch, 1-based (`--shard index/count`). */
+export interface Shard {
+  readonly index: number;
+  readonly count: number;
+}
+
+/**
+ * The entries of one shard: every `count`-th entry starting at position `index` (round robin), so
+ * shards differ in size by at most one and the split is the same on every machine. Pure.
+ */
+export function shardEntries<T>(entries: readonly T[], shard: Shard): T[] {
+  return entries.filter((_entry, position) => position % shard.count === shard.index - 1);
+}
+
 /** Which entries a batch runs. */
 export interface BatchPlan {
   readonly toRun: readonly DatasetEntry[];
@@ -162,17 +176,32 @@ export async function writeBatchIndex(
   records: readonly RunRecord[],
 ): Promise<BatchEntry[]> {
   const latest = latestByEntry(records);
+  return writeRunsIndex(
+    fs,
+    file,
+    outDir,
+    entries.flatMap((entry) => latest.get(entry.id) ?? []),
+  );
+}
+
+/**
+ * Writes a batch index of `records` in the given order, each linked to its report when the report
+ * exists. Returns the index rows.
+ */
+export async function writeRunsIndex(
+  fs: FileSystem,
+  file: string,
+  outDir: string,
+  records: readonly RunRecord[],
+): Promise<BatchEntry[]> {
   const rows: BatchEntry[] = [];
-  for (const entry of entries) {
-    const record = latest.get(entry.id);
-    if (record !== undefined) {
-      const report = createArtifactPaths(outDir, record.runId).reportHtml;
-      rows.push(
-        (await fs.exists(report))
-          ? { record, reportHref: path.relative(path.dirname(file), report) }
-          : { record },
-      );
-    }
+  for (const record of records) {
+    const report = createArtifactPaths(outDir, record.runId).reportHtml;
+    rows.push(
+      (await fs.exists(report))
+        ? { record, reportHref: path.relative(path.dirname(file), report) }
+        : { record },
+    );
   }
   await renderBatchIndex(rows, file, fs);
   return rows;

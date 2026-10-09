@@ -2,7 +2,7 @@ import { BdiffError, TargetSchema } from '@bdiff/core';
 import type { LogLevel, Target } from '@bdiff/core';
 import { z } from 'zod';
 
-import type { BatchMode } from './batch.js';
+import type { BatchMode, Shard } from './batch.js';
 import { DATASET_TAG_NAMES, parseTagFilters } from './dataset.js';
 import type { DatasetTagName, TagFilter } from './dataset.js';
 
@@ -90,6 +90,7 @@ export interface BatchFlags {
   readonly resume?: boolean;
   readonly force?: boolean;
   readonly only?: readonly string[];
+  readonly shard?: string;
 }
 
 /** A validated `bdiff batch` configuration. */
@@ -104,7 +105,12 @@ export interface BatchConfig {
   readonly concurrency: number;
   readonly mode: BatchMode;
   readonly only: readonly TagFilter[];
+  /** Run only this shard of the selected entries (`--shard i/n`). */
+  readonly shard?: Shard;
 }
+
+/** Most shards a batch can be split into. */
+export const MAX_SHARDS = 100;
 
 /** Most runs a batch may run at once (Docker resources). */
 export const MAX_BATCH_CONCURRENCY = 2;
@@ -122,6 +128,20 @@ const RawBatchSchema = z.object({
     ),
   resume: z.boolean(),
   force: z.boolean(),
+  shard: z
+    .string()
+    .trim()
+    .regex(/^[1-9]\d*\/[1-9]\d*$/, '--shard must be <i>/<n>, e.g. 2/4')
+    .transform((value) => {
+      const [index = 0, count = 0] = value.split('/').map(Number);
+      return { index, count };
+    })
+    .refine((shard) => shard.index <= shard.count, '--shard i/n needs i ≤ n')
+    .refine(
+      (shard) => shard.count <= MAX_SHARDS,
+      `--shard allows at most ${String(MAX_SHARDS)} shards`,
+    )
+    .optional(),
 });
 
 /**
@@ -143,6 +163,7 @@ export function parseBatchConfig(
     concurrency: flags.concurrency ?? '1',
     resume: flags.resume ?? false,
     force: flags.force ?? false,
+    shard: flags.shard,
   });
   if (!batch.success) {
     problems.push(...batch.error.issues.map((issue) => issue.message));
@@ -164,6 +185,7 @@ export function parseBatchConfig(
     concurrency: batch.data.concurrency,
     mode: batch.data.resume ? 'resume' : batch.data.force ? 'force' : 'fresh',
     only,
+    ...(batch.data.shard === undefined ? {} : { shard: batch.data.shard }),
   };
 }
 
@@ -172,6 +194,7 @@ export interface StatsFlags {
   readonly out?: string;
   readonly by?: string;
   readonly logLevel?: string;
+  readonly markdown?: string;
 }
 
 /** A validated `bdiff stats` configuration. */
@@ -179,6 +202,8 @@ export interface StatsConfig {
   readonly outDir: string;
   readonly by?: DatasetTagName;
   readonly logLevel: LogLevel;
+  /** Also write the statistics as Markdown to this file (e.g. a CI job summary). */
+  readonly markdownFile?: string;
 }
 
 /**
@@ -204,6 +229,9 @@ export function parseStatsConfig(
     outDir: common.outDir,
     logLevel: common.logLevel,
     ...(by === undefined ? {} : { by }),
+    ...(flags.markdown === undefined || flags.markdown.trim() === ''
+      ? {}
+      : { markdownFile: flags.markdown }),
   };
 }
 

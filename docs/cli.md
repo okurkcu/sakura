@@ -2,8 +2,8 @@
 
 ```bash
 pnpm bdiff run --repo <url|path> --base <ref> --head <ref> [options]
-pnpm bdiff batch <dataset.json> [--concurrency 1|2] [--resume | --force] [--only <tag=value>]… [options]
-pnpm bdiff stats [--by difficulty|prType|author] [--out <dir>]
+pnpm bdiff batch <dataset.json> [--concurrency 1|2] [--resume | --force] [--only <tag=value>]… [--shard <i/n>] [options]
+pnpm bdiff stats [--by difficulty|prType|author] [--markdown <file>] [--out <dir>]
 ```
 
 From a build, the same command is `node packages/cli/dist/main.js run …` (package bin: `bdiff`).
@@ -86,13 +86,13 @@ The dataset (validated; an invalid one exits with 2 and lists every problem):
 }
 ```
 
-`id` is unique, made of letters, digits, `.`, `_` and `-`. `prNumber` is optional (a local repository has none). Tags: `difficulty` is `easy` or `realistic`, `prType` is `ui`, `api`, `mixed` or `refactor` (use `refactor` for any PR that should not change behavior; the false-difference criterion counts on it), `author` is `human` or `agent`. `--only prType=api` (repeatable; all must match) runs a subset.
+`id` is unique, made of letters, digits, `.`, `_` and `-`. `prNumber` is optional (a local repository has none). Tags: `difficulty` is `easy` or `realistic`, `prType` is `ui`, `api`, `mixed` or `refactor` (use `refactor` for any PR that should not change behavior; the false-difference criterion counts on it), `author` is `human` or `agent`. `--only prType=api` (repeatable; all must match) runs a subset. `--shard 2/4` then keeps every fourth of those entries starting with the second (round robin), so `n` machines can split a batch: shards differ in size by at most one, and the split is the same everywhere. The CI workflow does that (see [ci.md](ci.md)).
 
 An entry is **done** when `<out>` holds a record of it from the same bdiff version (`toolVersion`), whatever its status, except an interrupted run (`ABORTED`). If some selected entries are done, `bdiff batch` refuses to start (exit 2) unless `--resume` (skip them: continue a batch that was interrupted) or `--force` (run them again). Ctrl+C stops the batch: the runs in progress are aborted and recorded, no further entry starts, and the command exits with 130; run it again with `--resume`. `bdiff batch` exits with 0 when every entry it ran was recorded (whatever the runs' status), 1 when some could not be.
 
 ## `bdiff stats`
 
-Reads every `run.json` under `<out>/runs`, prints the experiment's numbers and writes them to `<out>/stats.json` (see [metrics.md](metrics.md#statsjson)). A dataset entry recorded several times counts once (its latest record); single runs each count. `--by <tag>` adds the same numbers per tag value. It exits with 1 when there is no record.
+Reads every `run.json` under `<out>/runs`, prints the experiment's numbers and writes them to `<out>/stats.json` (see [metrics.md](metrics.md#statsjson)). It also writes `<out>/report/batch-index.html` over the runs it counted, so the runs of a batch split into shards (copied into one `runs/` directory) get one index. `--markdown <file>` also writes the criteria and main numbers as Markdown, e.g. for a CI job summary. A dataset entry recorded several times counts once (its latest record); single runs each count. `--by <tag>` adds the same numbers per tag value. It exits with 1 when there is no record.
 
 It ends with the epic's success criteria, each `PASS`, `FAIL` or `N/A` (not enough runs to judge):
 

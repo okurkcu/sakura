@@ -18,7 +18,7 @@ import {
 } from '@bdiff/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { executeBatch, finishes, planBatch, writeBatchIndex } from './batch.js';
+import { executeBatch, finishes, planBatch, shardEntries, writeBatchIndex } from './batch.js';
 import type { BatchServices } from './batch.js';
 import type { DatasetEntry } from './dataset.js';
 
@@ -63,6 +63,26 @@ describe('finishes / planBatch', () => {
     expect(ids('resume')).toEqual([['b', 'c'], ['a']]);
     expect(ids('force')).toEqual([['a', 'b', 'c'], ['a']]);
     expect(ids('fresh')).toEqual([['a', 'b', 'c'], ['a']]);
+  });
+});
+
+describe('shardEntries', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+
+  it.each([
+    [{ index: 1, count: 1 }, ['a', 'b', 'c', 'd', 'e', 'f', 'g']],
+    [{ index: 1, count: 3 }, ['a', 'd', 'g']],
+    [{ index: 2, count: 3 }, ['b', 'e']],
+    [{ index: 3, count: 3 }, ['c', 'f']],
+    [{ index: 4, count: 4 }, ['d']],
+    [{ index: 9, count: 9 }, []],
+  ])('%j → %j', (shard, expected) => {
+    expect(shardEntries(ids, shard)).toEqual(expected);
+  });
+
+  it('splits every entry into exactly one shard', () => {
+    const shards = [1, 2, 3, 4].map((index) => shardEntries(ids, { index, count: 4 }));
+    expect(shards.flat().sort()).toEqual(ids);
   });
 });
 

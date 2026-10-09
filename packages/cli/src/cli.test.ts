@@ -335,10 +335,14 @@ describe('runCli batch and stats', () => {
     );
     return file;
   };
+  /**
+   * `<entry>:<status or failure code>` of every record, sorted: stub runs finish within the same
+   * millisecond, so run ids do not tell their order (the progress lines do).
+   */
   const recordedIds = async () => {
     const out = path.join(cwd, '.bdiff', 'runs');
     const ids: string[] = [];
-    for (const runId of [...(await nodeFileSystem.readdir(out))].sort()) {
+    for (const runId of await nodeFileSystem.readdir(out)) {
       const record = RunRecordSchema.parse(
         JSON.parse(await readFile(path.join(out, runId, 'run.json'), 'utf8')),
       );
@@ -346,7 +350,7 @@ describe('runCli batch and stats', () => {
         `${record.dataset?.id ?? '-'}:${record.status === 'failed' ? record.failure.code : record.status}`,
       );
     }
-    return ids;
+    return ids.sort();
   };
 
   it('runs every entry, writes the index, and refuses to run them again unless asked', async () => {
@@ -384,9 +388,9 @@ describe('runCli batch and stats', () => {
     ).toBe(EXIT_CODES.success);
     expect(await recordedIds()).toEqual([
       'a:success',
+      'a:success',
       'b:success',
       'c:success',
-      'a:success',
       'c:success',
     ]);
   });
@@ -428,6 +432,39 @@ describe('runCli batch and stats', () => {
 
     expect(resumed.output().stdout).toContain('3 entries, 2 to run, 1 already recorded');
     expect(await recordedIds()).toEqual(['a:success', 'b:ABORTED', 'b:success', 'c:success']);
+  });
+
+  it('runs only its shard, and stats combines the shards into one index and Markdown', async () => {
+    const dataset = await writeDataset(['a', 'b', 'c', 'd', 'e']);
+    for (const shard of ['1/2', '2/2']) {
+      const h = harness(cwd);
+      expect(await runCli(['batch', dataset, '--shard', shard], h.io, h.deps)).toBe(
+        EXIT_CODES.success,
+      );
+      expect(h.output().stdout).toContain(`bdiff batch: ${shard === '1/2' ? '3' : '2'} entries`);
+    }
+    expect(await recordedIds()).toEqual([
+      'a:success',
+      'b:success',
+      'c:success',
+      'd:success',
+      'e:success',
+    ]);
+
+    const s = harness(cwd);
+    expect(await runCli(['stats', '--markdown', 'summary.md'], s.io, s.deps)).toBe(
+      EXIT_CODES.success,
+    );
+
+    const index = await readFile(path.join(cwd, '.bdiff', 'report', 'batch-index.html'), 'utf8');
+    for (const id of ['a', 'b', 'c', 'd', 'e']) {
+      expect(index).toContain(`pr/${id}`);
+    }
+    const markdown = await readFile(path.join(cwd, 'summary.md'), 'utf8');
+    expect(markdown).toContain('5 runs: 5 success, 0 failed, 0 skipped.');
+    expect(markdown).toContain(
+      '| Setup works automatically in ≥ 50% of repositories | 100% (5/5) | ✅ PASS |',
+    );
   });
 
   it('aggregates the recorded runs with stats and writes stats.json', async () => {

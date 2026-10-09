@@ -47,7 +47,7 @@ import type {
 import { createReportStage } from '@bdiff/report';
 import { Command, CommanderError } from 'commander';
 
-import { executeBatch, planBatch, writeBatchIndex } from './batch.js';
+import { executeBatch, planBatch, shardEntries, writeBatchIndex, writeRunsIndex } from './batch.js';
 import {
   MAX_BATCH_CONCURRENCY,
   parseBatchConfig,
@@ -59,8 +59,8 @@ import {
 import type { BatchFlags, RunFlags, StatsFlags } from './config.js';
 import { DATASET_TAG_NAMES, loadDataset, selectEntries } from './dataset.js';
 import { readRunRecords } from './run-records.js';
-import { formatStats } from './stats-text.js';
-import { computeStats } from './stats.js';
+import { formatStats, formatStatsMarkdown } from './stats-text.js';
+import { computeStats, countedRecords } from './stats.js';
 import { resolveToolVersion } from './tool-version.js';
 
 /** Process exit codes of `bdiff`. */
@@ -207,6 +207,7 @@ export async function runCli(
     )
     .option('--resume', 'skip entries already recorded by this bdiff version')
     .option('--force', 'run entries again even if this bdiff version recorded them')
+    .option('--shard <i/n>', 'run only the i-th of n parts of the (filtered) entries, round robin')
     .option(
       '--only <tag=value>',
       `run only matching entries (${DATASET_TAG_NAMES.join(', ')}); repeatable`,
@@ -224,6 +225,7 @@ export async function runCli(
     .command('stats')
     .description('Aggregate the experiment metrics over the recorded runs; writes stats.json.')
     .option('--by <tag>', `also group by a dataset tag (${DATASET_TAG_NAMES.join(', ')})`)
+    .option('--markdown <file>', 'also write the statistics as Markdown (e.g. a CI job summary)')
     .option('--out <dir>', outOption)
     .option('--log-level <level>', logLevelOption)
     .action((flags: StatsFlags) => {
@@ -371,7 +373,8 @@ async function batch(
   try {
     config = parseBatchConfig(datasetFile, flags, io.env);
     const dataset = await loadDataset(deps.fs, path.resolve(deps.cwd, config.datasetFile));
-    entries = selectEntries(dataset.entries, config.only);
+    const selected = selectEntries(dataset.entries, config.only);
+    entries = config.shard === undefined ? selected : shardEntries(selected, config.shard);
   } catch (error) {
     return usage(io, 'batch', error);
   }
@@ -432,13 +435,25 @@ async function stats(flags: StatsFlags, io: CliIo, deps: CliDeps): Promise<numbe
     return EXIT_CODES.failed;
   }
   const result = computeStats(records, config.by);
-  const file = createOutputPaths(outDir).statsJson;
-  await deps.fs.writeFile(file, `${JSON.stringify(result, null, 2)}\n`);
+  const outputs = createOutputPaths(outDir);
+  await deps.fs.writeFile(outputs.statsJson, `${JSON.stringify(result, null, 2)}\n`);
+  // One index over every counted run: a batch run in shards is combined here.
+  const counted = countedRecords(records).sort((a, b) => {
+    const [x, y] = [a.dataset?.id ?? '', b.dataset?.id ?? ''];
+    return x < y ? -1 : x > y ? 1 : a.runId < b.runId ? -1 : 1;
+  });
+  await writeRunsIndex(deps.fs, outputs.batchIndexHtml, outDir, counted);
+  if (config.markdownFile !== undefined) {
+    await deps.fs.writeFile(
+      path.resolve(deps.cwd, config.markdownFile),
+      formatStatsMarkdown(result),
+    );
+  }
   io.stdout.write(formatStats(result));
   if (unreadable.length > 0) {
     io.stdout.write(`(${String(unreadable.length)} unreadable run.json skipped)\n`);
   }
-  io.stdout.write(`stats: ${file}\n`);
+  io.stdout.write(`stats: ${outputs.statsJson}\n  index: ${outputs.batchIndexHtml}\n`);
   return EXIT_CODES.success;
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseRunConfig } from './config.js';
+import { parseBatchConfig, parseRunConfig } from './config.js';
 import type { RunFlags } from './config.js';
 
 const required: RunFlags = { repo: 'https://github.com/acme/shop.git', base: 'main', head: 'pr/1' };
@@ -125,5 +125,33 @@ describe('parseRunConfig', () => {
     expect(() => parseRunConfig({ base: 'main', head: 'x', pr: 'x', timeout: '0' }, {})).toThrow(
       /--repo is required[\s\S]*--pr must be a positive integer[\s\S]*more than 0/,
     );
+  });
+});
+
+describe('parseBatchConfig', () => {
+  it('reads the batch options, with --shard as index and count', () => {
+    expect(
+      parseBatchConfig(
+        'datasets/dataset.json',
+        { concurrency: '2', resume: true, only: ['prType=api'], shard: '2/4' },
+        {},
+      ),
+    ).toMatchObject({
+      datasetFile: 'datasets/dataset.json',
+      concurrency: 2,
+      mode: 'resume',
+      only: [{ tag: 'prType', value: 'api' }],
+      shard: { index: 2, count: 4 },
+    });
+    expect(parseBatchConfig('d.json', {}, {})).not.toHaveProperty('shard');
+  });
+
+  it.each([
+    ['0/4', /--shard must be <i>\/<n>/],
+    ['5/4', /--shard i\/n needs i ≤ n/],
+    ['1/101', /at most 100 shards/],
+    ['two', /--shard must be <i>\/<n>/],
+  ])('rejects --shard %s', (shard, message) => {
+    expect(() => parseBatchConfig('d.json', { shard }, {})).toThrow(message);
   });
 });

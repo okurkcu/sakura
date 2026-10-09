@@ -80,8 +80,7 @@ export const SUCCESS_THRESHOLDS = {
  * also grouped by that dataset tag (runs without it go under `(none)`). Pure.
  */
 export function computeStats(records: readonly RunRecord[], by?: string): Stats {
-  const latest = new Set(latestByEntry(records).values());
-  const counted = records.filter((record) => record.dataset === null || latest.has(record));
+  const counted = countedRecords(records);
   const stats: Stats = {
     records: counted.length,
     overall: groupStats(counted),
@@ -106,6 +105,15 @@ export function computeStats(records: readonly RunRecord[], by?: string): Stats 
       ),
     },
   };
+}
+
+/**
+ * The records the statistics count: the latest record of each dataset entry and every single run,
+ * in their input order. Pure.
+ */
+export function countedRecords(records: readonly RunRecord[]): RunRecord[] {
+  const latest = new Set(latestByEntry(records).values());
+  return records.filter((record) => record.dataset === null || latest.has(record));
 }
 
 /** The numbers for one group of runs. Pure. */

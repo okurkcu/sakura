@@ -21,6 +21,10 @@ cp .env.example .env   # then fill in ANTHROPIC_API_KEY and GITHUB_TOKEN
 pnpm check             # lint + typecheck + test
 ```
 
+## Running the experiment in CI
+
+`.github/workflows/batch.yml` runs a dataset through `bdiff batch` in parallel shards on GitHub Actions and combines the results with `bdiff stats`: Actions → Dataset batch → Run workflow. See [docs/ci.md](docs/ci.md). Cost: GitHub Actions is free for public repositories; on a private repository, standard Linux runners are billed per minute (each shard runs for minutes to hours, depending on the dataset).
+
 ## Layout
 
 | Path              | Purpose                                                    |
