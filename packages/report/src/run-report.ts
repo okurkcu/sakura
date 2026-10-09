@@ -37,7 +37,7 @@ const EMPTY_PROBE: ApiProbe = { requests: [], captures: [], notProbed: [] };
 const MAX_VALUE_CHARS = 200;
 
 const LLM_MODE_NOTES: Readonly<Record<'off' | 'fake', string>> = {
-  off: 'No model was used: the interpretation and setup repair were skipped. Set ANTHROPIC_API_KEY to turn it on.',
+  off: 'No model was used: findings are not interpreted and setup failures not repaired. Set ANTHROPIC_API_KEY to turn it on.',
   fake: 'Canned answers, no model was called: the interpretation is a placeholder. Set ANTHROPIC_API_KEY for a real one.',
 };
 

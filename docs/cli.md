@@ -55,7 +55,7 @@ Other environment variables:
 `--llm` defaults to `on` when `ANTHROPIC_API_KEY` is set and to `off` otherwise (with a one-line notice on stderr), so adding the key is all it takes to turn the model on.
 
 - `on`: the real model, for setup repair, generated API requests and the interpretation.
-- `off`: no model. The interpretation and setup repair are skipped (`skipped` in `stageTimings`), generated API requests are not sent (their endpoints are listed as not probed); every finding is still found and the run can succeed.
+- `off`: no model. The interpretation of findings and setup repair are skipped (a run without findings still gets its deterministic "no changes" interpretation) (`skipped` in `stageTimings`), generated API requests are not sent (their endpoints are listed as not probed); every finding is still found and the run can succeed.
 - `fake`: canned answers, no model and no cost: a placeholder interpretation (every text starts with `[fake]`, breaking findings are flagged as unexpected) and one plain request per endpoint. Setup repair is skipped. For seeing the whole report and the dev panel without a key; never for measurements.
 
 The mode is recorded in `run.json` (`llmMode`) and shown in the report. `bdiff stats` counts only `on` runs for the hidden-changes criterion.

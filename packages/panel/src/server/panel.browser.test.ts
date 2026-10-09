@@ -92,6 +92,7 @@ describe('panel with demo data', () => {
 
     await page.locator('main h1', { hasText: 'Runs' }).waitFor();
     await page.getByText('Demo data').first().waitFor();
+    await page.locator('.metric').first().waitFor();
     expect(await page.locator('.metric').count()).toBe(4);
     const live = page.getByRole('region', { name: 'Running now' });
     await live.waitFor();

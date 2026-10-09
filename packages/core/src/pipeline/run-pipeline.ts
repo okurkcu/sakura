@@ -59,7 +59,8 @@ export interface PipelineDeps {
   readonly dataset?: RunDataset;
   /**
    * How the run uses the LLM, recorded in `run.json`; defaults to `on`. With `off` the
-   * interpretation is skipped, and with `off` or `fake` so is the setup repair loop.
+   * interpretation of findings is skipped (a run without findings still gets its deterministic
+   * one), and with `off` or `fake` so is the setup repair loop.
    */
   readonly llmMode?: LlmMode;
   /** Process id recorded in the `run-started` event; defaults to this process. */
@@ -261,7 +262,8 @@ export async function runPipeline(
       recorder.setApiRequests(api.requests);
       const findings = (outputs.findings = await runStage(stages.diff, { impact, ui, api }));
       recorder.setFindingSummary(summarizeFindings(findings));
-      if (llmMode === 'off') {
+      // Without findings the interpretation needs no LLM, so it runs in every mode.
+      if (llmMode === 'off' && findings.length > 0) {
         skipStage('interpret');
       } else {
         const interpretation = (outputs.interpretation = await runStage(stages.interpret, {

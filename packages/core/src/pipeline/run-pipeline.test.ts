@@ -5,6 +5,7 @@ import { runPipeline } from './run-pipeline.js';
 import type { PipelineDeps } from './run-pipeline.js';
 import type { RunResult } from './run-result.js';
 import type { StageContext } from './stage.js';
+import type { Finding } from '../domain/finding.js';
 import type { StageName } from '../domain/stage.js';
 import { abortError } from '../errors/abort.js';
 import { BdiffError } from '../errors/bdiff-error.js';
@@ -254,9 +255,16 @@ describe('runPipeline events, result.json and LLM modes', () => {
     );
   });
 
-  it('with the LLM off, skips the interpretation and records the mode', async () => {
+  it('with the LLM off, skips the interpretation of findings and records the mode', async () => {
     const clock = new FakeClock();
-    const { stages, calls } = recordingStages(clock);
+    const finding: Finding = {
+      id: 'f1',
+      kind: 'visual',
+      severity: 'info',
+      location: { route: '/' },
+      evidence: [],
+    };
+    const { stages, calls } = recordingStages(clock, { diff: () => Promise.resolve([finding]) });
     const { deps: d, fs } = memoryDeps(clock, { llmMode: 'off' });
 
     const { result } = await runPipeline(TEST_TARGET, stages, d);
@@ -271,6 +279,17 @@ describe('runPipeline events, result.json and LLM modes', () => {
     });
     expect(stageEvents(fs)).toContainEqual(['stage-finished', 'interpret', 'skipped']);
     expect(eventsOf(fs)[0]).toMatchObject({ type: 'run-started', llmMode: 'off' });
+  });
+
+  it('with the LLM off, still interprets a run without findings (no LLM call needed)', async () => {
+    const clock = new FakeClock();
+    const { stages, calls } = recordingStages(clock);
+    const { deps: d } = memoryDeps(clock, { llmMode: 'off' });
+
+    const { result } = await runPipeline(TEST_TARGET, stages, d);
+
+    expect(calls).toContain('interpret');
+    expect(result.record.stageTimings.some((timing) => timing.outcome === 'skipped')).toBe(false);
   });
 
   it.each(['off', 'fake'] as const)(
