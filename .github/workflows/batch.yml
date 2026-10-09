@@ -1,0 +1,165 @@
+name: Dataset batch
+
+# Runs a dataset of pull requests through `bdiff batch` in parallel shards, then combines the
+# shards' runs into one `bdiff stats` (stats.json, batch index, PASS/FAIL in the job summary).
+# Start it from Actions → Dataset batch → Run workflow. A pull request that changes this workflow
+# or the batch code runs it once on the fixture dataset, so it keeps working.
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: Dataset file in the repository, or "fixture" for the fixture's PR branches
+        type: string
+        default: fixture
+      shards:
+        description: Parallel shards (1–20)
+        type: string
+        default: '4'
+      only:
+        description: Optional --only filter, e.g. prType=api
+        type: string
+        default: ''
+      budget:
+        description: LLM budget per PR, in USD
+        type: string
+        default: '1'
+  pull_request:
+    paths:
+      - .github/workflows/batch.yml
+      - packages/cli/src/batch.ts
+      - packages/cli/src/stats.ts
+      - packages/cli/src/stats-text.ts
+      - fixtures/fixture-dataset.ts
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # A pull request run has no inputs: it uses the defaults.
+  DATASET: ${{ inputs.dataset || 'fixture' }}
+  SHARDS: ${{ inputs.shards || '4' }}
+  ONLY: ${{ inputs.only || '' }}
+  BUDGET: ${{ inputs.budget || '1' }}
+  # Not hidden (".bdiff"), so the artifact actions include it.
+  OUT: bdiff-out
+
+jobs:
+  plan:
+    name: plan shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - id: plan
+        run: |
+          if ! [[ "$SHARDS" =~ ^[0-9]+$ ]] || (( SHARDS < 1 || SHARDS > 20 )); then
+            echo "::error::shards must be a number from 1 to 20, got '$SHARDS'"
+            exit 1
+          fi
+          echo "shards=[$(seq -s, 1 "$SHARDS")]" >> "$GITHUB_OUTPUT"
+
+  shard:
+    name: shard ${{ matrix.shard }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm browser:install --with-deps
+
+      # Ubuntu 23.10+ restricts unprivileged user namespaces with AppArmor, which Chromium's
+      # sandbox needs. bdiff never turns the sandbox off, so allow them on this throwaway runner.
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - run: docker pull --quiet node:22
+
+      - name: Prepare the dataset
+        id: dataset
+        run: |
+          if [ "$DATASET" = fixture ]; then
+            pnpm --silent fixture:dataset "$RUNNER_TEMP/fixture" > /dev/null
+            echo "file=$RUNNER_TEMP/fixture/dataset.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "file=$DATASET" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run shard ${{ matrix.shard }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DATASET_FILE: ${{ steps.dataset.outputs.file }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          # Without the secret the variable is set but empty; unset it so runs that need the LLM
+          # fail with LLM_UNAVAILABLE instead of sending an empty key.
+          if [ -z "$ANTHROPIC_API_KEY" ]; then unset ANTHROPIC_API_KEY; fi
+          args=(batch "$DATASET_FILE" --shard "$SHARD/$SHARDS" --budget "$BUDGET" --out "$OUT")
+          if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
+          pnpm bdiff "${args[@]}"
+
+      - name: Upload the shard's runs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bdiff-shard-${{ matrix.shard }}
+          path: |
+            ${{ env.OUT }}/runs/
+            !${{ env.OUT }}/runs/*/worktrees/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  stats:
+    name: combine and stats
+    needs: [plan, shard]
+    # Also after a failed shard: the other shards' runs still count.
+    if: ${{ always() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Download every shard's runs
+        uses: actions/download-artifact@v8
+        with:
+          pattern: bdiff-shard-*
+          path: ${{ env.OUT }}/runs
+          merge-multiple: true
+
+      - name: Combine the shards
+        run: pnpm bdiff stats --out "$OUT" --by prType --markdown "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the combined results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bdiff-results
+          path: ${{ env.OUT }}/
+          retention-days: 30
