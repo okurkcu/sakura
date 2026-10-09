@@ -10,7 +10,7 @@ import {
   nodeFileSystem,
   RunRecordSchema,
 } from '@bdiff/core';
-import type { Finding, InterpretAnswer, LlmTier, RunRecord } from '@bdiff/core';
+import type { Finding, LlmTier, RunRecord } from '@bdiff/core';
 import { FakeLlmClient } from '@bdiff/core/testing';
 import { BASE_BRANCH, buildFixtureRepo, loadExpected, PR_BRANCHES } from '@bdiff/fixtures';
 import type { Expected, ExpectedFinding, FixtureRepo, PrBranch } from '@bdiff/fixtures';
@@ -19,6 +19,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { composeLeftovers } from './compose-leftovers.js';
 import { configuredModels, runBdiff } from './run-bdiff.js';
 import type { CliRun } from './run-bdiff.js';
+import { withScriptedInterpretation } from './scripted-interpretation.js';
 import { worktreeLeftovers } from './worktree-leftovers.js';
 
 const exec = createExecaExec();
@@ -36,28 +37,6 @@ const OUTCOME_LINES: Readonly<Record<PrBranch, string>> = {
 function placeKey(finding: Pick<ExpectedFinding, 'kind' | 'location'>): string {
   const { route, endpoint, jsonPath } = finding.location;
   return JSON.stringify([finding.kind, route ?? null, endpoint ?? null, jsonPath ?? null]);
-}
-
-/**
- * A valid interpretation of `findings`, standing in for the model's: it cites every finding and
- * flags the breaking ones as unexpected.
- */
-function scriptedInterpretation(findings: readonly Finding[]): InterpretAnswer {
-  const ids = findings.map((finding) => finding.id);
-  const breaking = findings.filter((finding) => finding.severity === 'breaking');
-  return {
-    summary: [
-      { text: 'Scripted summary of every finding.', findingIds: ids },
-      { text: 'Scripted note on the first finding.', findingIds: ids.slice(0, 1) },
-    ],
-    unexpected: breaking.map((finding) => ({
-      findingId: finding.id,
-      reason: 'Scripted: breaking changes are flagged.',
-    })),
-    riskLevel: breaking.length > 0 ? 'high' : 'low',
-    coverageNote: 'Scripted coverage note.',
-    reviewerChecklist: [],
-  };
 }
 
 /** The HTML of one finding in the report, from its anchor to the next finding. */
@@ -100,7 +79,7 @@ describe('bdiff on every fixture branch (@docker)', () => {
 
   /**
    * Runs `bdiff run` on `branch` with a {@link FakeLlmClient} that answers the interpret call with
-   * {@link scriptedInterpretation} of the diff stage's findings. Returns what it printed and the
+   * a scripted interpretation of the diff stage's findings. Returns what it printed and the
    * findings.
    */
   async function bdiff(
@@ -117,17 +96,10 @@ describe('bdiff on every fixture branch (@docker)', () => {
       cacheDir,
       cwd: root,
       llm,
-      editStages: (stages) => ({
-        ...stages,
-        diff: {
-          name: 'diff',
-          run: async (input, ctx) => {
-            findings = await stages.diff.run(input, ctx);
-            llm.on(INTERPRET_PURPOSE, scriptedInterpretation(findings));
-            return findings;
-          },
-        },
-      }),
+      editStages: (stages) =>
+        withScriptedInterpretation(stages, llm, (found) => {
+          findings = found;
+        }),
     });
     return { ...run, findings, llm };
   }
