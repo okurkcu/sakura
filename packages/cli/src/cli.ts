@@ -19,6 +19,8 @@ import {
   createRecipeStage,
   createRepairStages,
   createLogger,
+  createMetricsStore,
+  createOutputPaths,
   createUiProbeStage,
   createWorkspaceStage,
   DEFAULT_BUDGET_USD,
@@ -32,6 +34,7 @@ import {
 } from '@bdiff/core';
 import type {
   Clock,
+  CostCalculator,
   Exec,
   FileSystem,
   Finding,
@@ -44,8 +47,20 @@ import type {
 import { createReportStage } from '@bdiff/report';
 import { Command, CommanderError } from 'commander';
 
-import { parseRunConfig, RUN_DEFAULTS, RUN_ENV } from './config.js';
-import type { RunFlags } from './config.js';
+import { executeBatch, planBatch, writeBatchIndex } from './batch.js';
+import {
+  MAX_BATCH_CONCURRENCY,
+  parseBatchConfig,
+  parseRunConfig,
+  parseStatsConfig,
+  RUN_DEFAULTS,
+  RUN_ENV,
+} from './config.js';
+import type { BatchFlags, RunFlags, StatsFlags } from './config.js';
+import { DATASET_TAG_NAMES, loadDataset, selectEntries } from './dataset.js';
+import { readRunRecords } from './run-records.js';
+import { formatStats } from './stats-text.js';
+import { computeStats } from './stats.js';
 import { resolveToolVersion } from './tool-version.js';
 
 /** Process exit codes of `bdiff`. */
@@ -142,15 +157,21 @@ export function cacheDir(env: Readonly<Record<string, string | undefined>>): str
 }
 
 /**
- * Runs the `bdiff` command line and returns the exit code: 0 success or skipped, 1 run failed (and
- * recorded), 2 invalid usage, 130 interrupted (after cleanup ran).
+ * Runs the `bdiff` command line and returns the exit code. `run`: 0 success or skipped, 1 run
+ * failed (and recorded). `batch`: 0 every entry recorded (whatever its status), 1 some entry could
+ * not be recorded. `stats`: 0, or 1 when there is no record. All: 2 invalid usage, 130 interrupted
+ * (after cleanup ran).
  */
 export async function runCli(
   argv: readonly string[],
   io: CliIo,
   deps: CliDeps = createDefaultCliDeps(io.env),
 ): Promise<number> {
-  let runFlags: RunFlags | undefined;
+  let command:
+    | { readonly name: 'run'; readonly flags: RunFlags }
+    | { readonly name: 'batch'; readonly dataset: string; readonly flags: BatchFlags }
+    | { readonly name: 'stats'; readonly flags: StatsFlags }
+    | undefined;
   const program = new Command('bdiff')
     .description('Behavior diff for pull requests: run base and head, show how behavior changed.')
     .exitOverride()
@@ -158,6 +179,10 @@ export async function runCli(
       writeOut: (text) => io.stdout.write(text),
       writeErr: (text) => io.stderr.write(text),
     });
+  const outOption = `output directory (env ${RUN_ENV.outDir}, default ${RUN_DEFAULTS.outDir})`;
+  const timeoutOption = `run timeout in minutes (env ${RUN_ENV.timeoutMinutes}, default ${String(RUN_DEFAULTS.timeoutMinutes)})`;
+  const budgetOption = `LLM budget in USD (env ${RUN_ENV.budgetUsd}, default ${String(DEFAULT_BUDGET_USD)})`;
+  const logLevelOption = `debug, info, warn or error (env ${RUN_ENV.logLevel})`;
   program
     .command('run')
     .description('Compare the behavior of a base and a head ref of a repository.')
@@ -165,21 +190,44 @@ export async function runCli(
     .requiredOption('--base <ref>', 'base ref')
     .requiredOption('--head <ref>', 'head ref')
     .option('--pr <number>', 'pull request number')
+    .option('--out <dir>', outOption)
+    .option('--timeout <minutes>', timeoutOption)
+    .option('--budget <usd>', budgetOption)
+    .option('--log-level <level>', logLevelOption)
+    .action((flags: RunFlags) => {
+      command = { name: 'run', flags };
+    });
+  program
+    .command('batch')
+    .description('Run every pull request of a dataset file, then write the batch index.')
+    .argument('<dataset>', 'dataset JSON file')
     .option(
-      '--out <dir>',
-      `output directory (env ${RUN_ENV.outDir}, default ${RUN_DEFAULTS.outDir})`,
+      '--concurrency <n>',
+      `runs at a time, at most ${String(MAX_BATCH_CONCURRENCY)} (default 1)`,
     )
+    .option('--resume', 'skip entries already recorded by this bdiff version')
+    .option('--force', 'run entries again even if this bdiff version recorded them')
     .option(
-      '--timeout <minutes>',
-      `run timeout in minutes (env ${RUN_ENV.timeoutMinutes}, default ${String(RUN_DEFAULTS.timeoutMinutes)})`,
+      '--only <tag=value>',
+      `run only matching entries (${DATASET_TAG_NAMES.join(', ')}); repeatable`,
+      (value: string, previous: string[]) => [...previous, value],
+      [],
     )
-    .option(
-      '--budget <usd>',
-      `LLM budget in USD (env ${RUN_ENV.budgetUsd}, default ${String(DEFAULT_BUDGET_USD)})`,
-    )
-    .option('--log-level <level>', `debug, info, warn or error (env ${RUN_ENV.logLevel})`)
-    .action((options: RunFlags) => {
-      runFlags = options;
+    .option('--out <dir>', outOption)
+    .option('--timeout <minutes>', `${timeoutOption}, per run`)
+    .option('--budget <usd>', `${budgetOption}, per run`)
+    .option('--log-level <level>', logLevelOption)
+    .action((dataset: string, flags: BatchFlags) => {
+      command = { name: 'batch', dataset, flags };
+    });
+  program
+    .command('stats')
+    .description('Aggregate the experiment metrics over the recorded runs; writes stats.json.')
+    .option('--by <tag>', `also group by a dataset tag (${DATASET_TAG_NAMES.join(', ')})`)
+    .option('--out <dir>', outOption)
+    .option('--log-level <level>', logLevelOption)
+    .action((flags: StatsFlags) => {
+      command = { name: 'stats', flags };
     });
 
   try {
@@ -190,23 +238,41 @@ export async function runCli(
     }
     throw error;
   }
-  if (runFlags === undefined) {
-    program.outputHelp({ error: true });
-    return EXIT_CODES.usage;
+  switch (command?.name) {
+    case 'run':
+      return run(command.flags, io, deps);
+    case 'batch':
+      return batch(command.dataset, command.flags, io, deps);
+    case 'stats':
+      return stats(command.flags, io, deps);
+    case undefined:
+      program.outputHelp({ error: true });
+      return EXIT_CODES.usage;
   }
-  return run(runFlags, io, deps);
 }
 
-async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
-  let config;
-  try {
-    config = parseRunConfig(flags, io.env);
-  } catch (error) {
-    io.stderr.write(`bdiff: ${describe(error)}\nRun "bdiff run --help" for usage.\n`);
-    return EXIT_CODES.usage;
-  }
+/** What a command that runs the pipeline needs, once configuration is loaded. */
+interface Session {
+  readonly logger: Logger;
+  /** Aborted by SIGINT or SIGTERM. */
+  readonly signal: AbortSignal;
+  readonly interrupted: () => boolean;
+  readonly costs: CostCalculator;
+  readonly llm: LlmClient;
+  readonly toolVersion: string;
+}
 
-  const logger = deps.createLogger(config.logLevel);
+/**
+ * Runs `body` with stop-signal handling (a second interrupt force-quits) and the run services:
+ * pricing, LLM client, tool version. An error that escapes `body` means nothing could be recorded.
+ */
+async function withSession(
+  io: CliIo,
+  deps: CliDeps,
+  logLevel: LogLevel,
+  body: (session: Session) => Promise<number>,
+): Promise<number> {
+  const logger = deps.createLogger(logLevel);
   // Only a stop signal aborts this controller, so `aborted` means "interrupted".
   const controller = new AbortController();
   const interrupted = () => controller.signal.aborted;
@@ -226,7 +292,6 @@ async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
 
   try {
     const pricing = await loadPricingTable(deps.fs, deps.pricingPath);
-    const costs = createCostCalculator(pricing);
     // Credentials are only needed by a run that calls the LLM; the SDK reads them from the env.
     const llm = createAnthropicLlmClient({
       config: await loadLlmConfig(deps.fs, deps.llmConfigPath, pricing),
@@ -238,30 +303,14 @@ async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
       signal: controller.signal,
       logger,
     });
-    const outDir = path.resolve(deps.cwd, config.outDir);
-    const { result, runJsonPath } = await runPipeline(config.target, deps.createStages({ llm }), {
-      clock: deps.clock,
-      fs: deps.fs,
+    return await body({
       logger,
-      costs,
-      outDir,
-      toolVersion,
-      timeoutMs: config.timeoutMs,
-      budgetUsd: config.budgetUsd,
       signal: controller.signal,
+      interrupted,
+      costs: createCostCalculator(pricing),
+      llm,
+      toolVersion,
     });
-    const reportPath = createArtifactPaths(outDir, result.record.runId).reportHtml;
-    io.stdout.write(
-      summarize(result, {
-        runJsonPath,
-        // A failed report stage may leave no page behind.
-        ...((await deps.fs.exists(reportPath)) ? { reportPath } : {}),
-      }),
-    );
-    if (interrupted()) {
-      return EXIT_CODES.interrupted;
-    }
-    return result.record.status === 'failed' ? EXIT_CODES.failed : EXIT_CODES.success;
   } catch (error) {
     io.stderr.write(`bdiff: the run could not be recorded: ${describe(error)}\n`);
     return interrupted() ? EXIT_CODES.interrupted : EXIT_CODES.failed;
@@ -270,6 +319,132 @@ async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
       io.signals.off(signal, listener);
     }
   }
+}
+
+async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
+  let config;
+  try {
+    config = parseRunConfig(flags, io.env);
+  } catch (error) {
+    return usage(io, 'run', error);
+  }
+  return withSession(io, deps, config.logLevel, async (session) => {
+    const outDir = path.resolve(deps.cwd, config.outDir);
+    const { result, runJsonPath } = await runPipeline(
+      config.target,
+      deps.createStages({ llm: session.llm }),
+      {
+        clock: deps.clock,
+        fs: deps.fs,
+        logger: session.logger,
+        costs: session.costs,
+        outDir,
+        toolVersion: session.toolVersion,
+        timeoutMs: config.timeoutMs,
+        budgetUsd: config.budgetUsd,
+        signal: session.signal,
+      },
+    );
+    const reportPath = createArtifactPaths(outDir, result.record.runId).reportHtml;
+    io.stdout.write(
+      summarize(result, {
+        runJsonPath,
+        // A failed report stage may leave no page behind.
+        ...((await deps.fs.exists(reportPath)) ? { reportPath } : {}),
+      }),
+    );
+    if (session.interrupted()) {
+      return EXIT_CODES.interrupted;
+    }
+    return result.record.status === 'failed' ? EXIT_CODES.failed : EXIT_CODES.success;
+  });
+}
+
+async function batch(
+  datasetFile: string,
+  flags: BatchFlags,
+  io: CliIo,
+  deps: CliDeps,
+): Promise<number> {
+  let config;
+  let entries;
+  try {
+    config = parseBatchConfig(datasetFile, flags, io.env);
+    const dataset = await loadDataset(deps.fs, path.resolve(deps.cwd, config.datasetFile));
+    entries = selectEntries(dataset.entries, config.only);
+  } catch (error) {
+    return usage(io, 'batch', error);
+  }
+  const { mode, concurrency, timeoutMs, budgetUsd } = config;
+  return withSession(io, deps, config.logLevel, async (session) => {
+    const outDir = path.resolve(deps.cwd, config.outDir);
+    const before = await readRunRecords(deps.fs, outDir, session.logger);
+    const plan = planBatch(entries, before.records, session.toolVersion, mode);
+    if (mode === 'fresh' && plan.done.length > 0) {
+      io.stderr.write(
+        `bdiff: ${String(plan.done.length)} of these entries already have a record from this bdiff version (${session.toolVersion}) in ${outDir}; use --resume to skip them or --force to run them again\n`,
+      );
+      return EXIT_CODES.usage;
+    }
+    io.stdout.write(
+      `bdiff batch: ${String(entries.length)} entries, ${String(plan.toRun.length)} to run${mode === 'resume' ? `, ${String(plan.done.length)} already recorded` : ''}\n`,
+    );
+    const outcome = await executeBatch(
+      plan.toRun,
+      { outDir, concurrency, timeoutMs, budgetUsd },
+      {
+        clock: deps.clock,
+        fs: deps.fs,
+        logger: session.logger,
+        costs: session.costs,
+        toolVersion: session.toolVersion,
+        store: createMetricsStore({ fs: deps.fs, rootDir: outDir }),
+        createStages: () => deps.createStages({ llm: session.llm }),
+        signal: session.signal,
+        print: (line) => io.stdout.write(`  ${line}\n`),
+      },
+    );
+    const after = await readRunRecords(deps.fs, outDir, session.logger);
+    const indexFile = createOutputPaths(outDir).batchIndexHtml;
+    await writeBatchIndex(deps.fs, indexFile, outDir, entries, after.records);
+    io.stdout.write(
+      `bdiff batch: ${String(outcome.recorded.length)} recorded, ${String(outcome.unrecorded.length)} not recorded${session.interrupted() ? ', interrupted (run again with --resume)' : ''}\n  index: ${indexFile}\n`,
+    );
+    if (session.interrupted()) {
+      return EXIT_CODES.interrupted;
+    }
+    return outcome.unrecorded.length > 0 ? EXIT_CODES.failed : EXIT_CODES.success;
+  });
+}
+
+async function stats(flags: StatsFlags, io: CliIo, deps: CliDeps): Promise<number> {
+  let config;
+  try {
+    config = parseStatsConfig(flags, io.env);
+  } catch (error) {
+    return usage(io, 'stats', error);
+  }
+  const logger = deps.createLogger(config.logLevel);
+  const outDir = path.resolve(deps.cwd, config.outDir);
+  const { records, unreadable } = await readRunRecords(deps.fs, outDir, logger);
+  if (records.length === 0) {
+    io.stderr.write(`bdiff: no run records in ${path.join(outDir, 'runs')}\n`);
+    return EXIT_CODES.failed;
+  }
+  const result = computeStats(records, config.by);
+  const file = createOutputPaths(outDir).statsJson;
+  await deps.fs.writeFile(file, `${JSON.stringify(result, null, 2)}\n`);
+  io.stdout.write(formatStats(result));
+  if (unreadable.length > 0) {
+    io.stdout.write(`(${String(unreadable.length)} unreadable run.json skipped)\n`);
+  }
+  io.stdout.write(`stats: ${file}\n`);
+  return EXIT_CODES.success;
+}
+
+function usage(io: CliIo, command: string, error: unknown): number {
+  io.stderr.write(`bdiff: ${describe(error)}\nRun "bdiff ${command} --help" for usage.\n`);
+  return EXIT_CODES.usage;
 }
 
 /** Files of a finished run that {@link summarize} points to. */
