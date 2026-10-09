@@ -25,6 +25,55 @@ export function formatStats(stats: Stats): string {
   return `${lines.join('\n')}\n`;
 }
 
+/**
+ * `bdiff stats` as Markdown, e.g. for a CI job summary: the success criteria as a table, then the
+ * main numbers, then (with `--by`) one row per group. Pure.
+ */
+export function formatStatsMarkdown(stats: Stats): string {
+  const { overall } = stats;
+  const verdict = { pass: '✅ PASS', fail: '❌ FAIL', 'n/a': '➖ N/A' } as const;
+  const lines = [
+    '## bdiff experiment',
+    '',
+    `${String(overall.runs)} runs: ${String(overall.succeeded)} success, ${String(overall.failed)} failed, ${String(overall.skipped)} skipped.`,
+    '',
+    '| Criterion | Measured | Verdict |',
+    '| --- | --- | --- |',
+    ...stats.criteria.map(
+      (criterion) =>
+        `| ${criterion.description} | ${criterion.measured} | ${verdict[criterion.verdict]} |`,
+    ),
+    '',
+    '| Metric | Value |',
+    '| --- | --- |',
+    `| Setup success | ${percent(overall.setup.rate)} (${String(overall.setup.succeeded)}/${String(overall.setup.attempted)}) |`,
+    `| Skip rate | ${percent(overall.skipRate)} |`,
+    `| Duration | ${spread(overall.durationMs, duration)} |`,
+    `| LLM cost per PR | ${spread(overall.llmCostUsd, usd)} · total ${usd(overall.llmCostUsd.total)} |`,
+    `| Compute per PR | ${spread(overall.computeSeconds, seconds)} |`,
+    `| Noise ratio | ${percent(overall.noiseRatio)} |`,
+    `| Findings per PR | median ${number(overall.findingsPerRun.median)} · mean ${number(overall.findingsPerRun.mean)} |`,
+    `| Breaking or unexpected | ${percent(overall.breakingOrUnexpected.rate)} of successful runs |`,
+    `| Failure reasons | ${
+      Object.entries(overall.failureReasons)
+        .map(([code, count]) => `${code} ${String(count)}`)
+        .join(', ') || 'none'
+    } |`,
+  ];
+  if (stats.groups !== undefined) {
+    lines.push(
+      '',
+      `| ${stats.groups.by} | Runs | Setup | Median duration | Findings (mean) |`,
+      '| --- | --: | --: | --: | --: |',
+      ...Object.entries(stats.groups.values).map(
+        ([value, group]) =>
+          `| ${value} | ${String(group.runs)} | ${percent(group.setup.rate)} | ${duration(group.durationMs.median)} | ${number(group.findingsPerRun.mean)} |`,
+      ),
+    );
+  }
+  return `${lines.join('\n')}\n`;
+}
+
 function groupLines(group: GroupStats): string[] {
   const row = (label: string, value: string) => `${label.padEnd(22)}${value}`;
   const reasons = Object.entries(group.failureReasons)
