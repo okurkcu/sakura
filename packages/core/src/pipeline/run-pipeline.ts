@@ -1,6 +1,7 @@
 import { createCleanupRegistry } from './cleanup-registry.js';
 import type { PipelineStages } from './pipeline-stages.js';
 import type { RunResult, StageOutputs } from './run-result.js';
+import { runSetup } from './setup-loop.js';
 import type { Budget, Stage, StageContext } from './stage.js';
 import { raceAbort, withTimeout } from './with-timeout.js';
 import type { Clock } from '../adapters/clock.js';
@@ -61,7 +62,7 @@ export interface PipelineRun {
  *
  * `workspace → impact → (skipped? stop) → recipe → environment → probe-ui → probe-api → diff → interpret`
  *
- * then, whatever happened: cleanup hooks (LIFO), report, final record, `run.json` + CSV row.
+ * (a repairable setup failure goes through the repair loop, `runSetup`), then, whatever happened: cleanup hooks (LIFO), report, final record, `run.json` + CSV row.
  * Stages are timed, the first error stops the chain, and a run timeout or external abort aborts
  * the stage in progress.
  *
@@ -168,11 +169,24 @@ export async function runPipeline(
     if (impact.skip !== undefined) {
       outcome = { status: 'skipped', reason: impact.skip.reason };
     } else {
-      const recipe = (outputs.recipe = await runStage(stages.recipe, { workspace }));
-      const environment = (outputs.environment = await runStage(stages.environment, {
-        workspace,
-        recipe,
-      }));
+      const setup = await runSetup(workspace, {
+        stages,
+        runStage,
+        spentUsd: () => recorder.spentUsd(),
+        onAttempts: (attempts) => {
+          recorder.setSetupAttempts(attempts);
+        },
+      });
+      if (setup.recipe !== null) {
+        outputs.recipe = setup.recipe;
+      }
+      if (!setup.ok) {
+        // The setup failure, not the repair attempts after it, is why the run failed.
+        currentStage = setup.stage;
+        throw setup.error;
+      }
+      const { recipe } = setup;
+      const environment = (outputs.environment = setup.environment);
       const ui = (outputs.ui = await runStage(stages.probeUi, { environment, impact }));
       const api = (outputs.api = await runStage(stages.probeApi, {
         workspace,

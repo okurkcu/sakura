@@ -7,6 +7,7 @@ import type { RepoFiles } from './repo-files.js';
 import type { FileSystem } from '../adapters/file-system.js';
 import type { Logger } from '../adapters/logger.js';
 import { RecipeSchema } from '../domain/recipe.js';
+import { resolveRepoSource } from '../workspace/repo-cache.js';
 
 /** File names whose content decides whether a cached recipe still applies. */
 const FINGERPRINT_NAMES = new Set([
@@ -50,6 +51,11 @@ export function recipeFingerprint(files: RepoFiles): string {
     }
   }
   return hash.digest('hex');
+}
+
+/** The cache file of a repository's recipe: `<cacheDir>/recipes/<repo dir name>.json`. */
+export function recipeCacheFile(cacheDir: string, repoUrl: string, cwd: string): string {
+  return path.join(cacheDir, 'recipes', `${resolveRepoSource(repoUrl, cwd).dirName}.json`);
 }
 
 /** Reads a cache entry; a missing, unreadable or invalid entry counts as no entry (logged). */

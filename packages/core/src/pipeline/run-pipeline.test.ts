@@ -15,7 +15,7 @@ import { FakeExec } from '../testing/fake-exec.js';
 import { FakeLlmClient } from '../testing/fake-llm-client.js';
 import { createMemoryMetricsStore } from '../testing/memory-metrics-store.js';
 import { createTestCostCalculator, TEST_RUN_ID, TEST_TARGET } from '../testing/run-records.js';
-import { createStubStages } from '../testing/stub-stages.js';
+import { createStubStages, STUB_RECIPE } from '../testing/stub-stages.js';
 import { createTestLogger } from '../testing/test-logger.js';
 
 type Override = (input: unknown, ctx: StageContext) => Promise<unknown>;
@@ -24,14 +24,17 @@ type Override = (input: unknown, ctx: StageContext) => Promise<unknown>;
  * Stub stages that log every call and advance the clock by 10 ms each; `overrides` replace the
  * behavior of individual stages.
  */
+/** The stages that are a single `Stage` (every one but `repair`). */
+type SingleStageKey = Exclude<keyof PipelineStages, 'repair'>;
+
 function recordingStages(
   clock: FakeClock,
-  overrides: Partial<Record<keyof PipelineStages, Override>> = {},
+  overrides: Partial<Record<SingleStageKey, Override>> = {},
 ) {
   const calls: StageName[] = [];
   const reports: RunResult[] = [];
   const stubs = createStubStages();
-  const wrap = <K extends keyof PipelineStages>(key: K): PipelineStages[K] => {
+  const wrap = <K extends SingleStageKey>(key: K): PipelineStages[K] => {
     const stub = stubs[key];
     const override = overrides[key];
     return {
@@ -51,6 +54,7 @@ function recordingStages(
     impact: wrap('impact'),
     recipe: wrap('recipe'),
     environment: wrap('environment'),
+    repair: stubs.repair,
     probeUi: wrap('probeUi'),
     probeApi: wrap('probeApi'),
     diff: wrap('diff'),
@@ -228,12 +232,113 @@ describe('runPipeline', () => {
       ['workspace', 'success'],
       ['impact', 'success'],
       ['recipe', 'failed'],
+      // SETUP_UNSUPPORTED goes to the repair loop; the stub repair has no LLM, so it gives up.
+      ['repair', 'failed'],
       ['report', 'success'],
+    ]);
+    expect(result.record.setupAttempts).toMatchObject([
+      { attempt: 1, outcome: 'no-patch', errorCode: 'LLM_UNAVAILABLE' },
     ]);
     expect(reports[0]?.record.status).toBe('failed');
     expect(reports[0]?.workspace).toBeDefined();
     expect(reports[0]?.recipe).toBeUndefined();
     expect(store.written[0]?.status).toBe('failed');
+  });
+
+  describe('setup repair', () => {
+    const buildFailed = () =>
+      new BdiffError('SETUP_BUILD_FAILED', 'head: build failed', { details: { side: 'head' } });
+    const repaired = { ...STUB_RECIPE, startCmd: ['pnpm', 'run', 'start'] };
+    const repair = (kept: unknown[]): PipelineStages['repair'] => ({
+      propose: {
+        name: 'repair',
+        run: () =>
+          Promise.resolve({
+            kind: 'patched',
+            recipe: repaired,
+            patch: {
+              reason: 'test',
+              env: [],
+              nodeVersion: null,
+              packageManager: null,
+              installCmd: null,
+              buildCmd: null,
+              startCmd: ['pnpm', 'run', 'start'],
+              dbSetupCmds: null,
+              appRoot: null,
+              port: null,
+              healthPath: null,
+            },
+            tier: 'fast',
+          }),
+      },
+      keep: {
+        name: 'repair',
+        run: ({ recipe }) => {
+          kept.push(recipe);
+          return Promise.resolve();
+        },
+      },
+    });
+
+    it('repairs a failed setup and carries on with the repaired recipe', async () => {
+      const clock = new FakeClock();
+      let environmentRuns = 0;
+      const { stages } = recordingStages(clock, {
+        environment: (input, ctx) =>
+          ++environmentRuns === 1
+            ? Promise.reject(buildFailed())
+            : createStubStages().environment.run(input as never, ctx),
+      });
+      const kept: unknown[] = [];
+
+      const { result } = await runPipeline(
+        TEST_TARGET,
+        { ...stages, repair: repair(kept) },
+        deps(clock).deps,
+      );
+
+      expect(result.record.status).toBe('success');
+      expect(result.recipe).toEqual(repaired);
+      expect(kept).toEqual([repaired]);
+      expect(result.record.setupAttempts).toMatchObject([
+        { attempt: 1, trigger: { code: 'SETUP_BUILD_FAILED', side: 'head' }, outcome: 'repaired' },
+      ]);
+      expect(
+        result.record.stageTimings
+          .map((timing) => [timing.stage, timing.outcome])
+          .filter(([stage]) => stage === 'environment' || stage === 'repair'),
+      ).toEqual([
+        ['environment', 'failed'],
+        ['repair', 'success'],
+        ['environment', 'success'],
+        ['repair', 'success'],
+      ]);
+    });
+
+    it('records an unrepaired setup failure against the stage that failed', async () => {
+      const clock = new FakeClock();
+      const { stages } = recordingStages(clock, {
+        environment: () => Promise.reject(buildFailed()),
+      });
+
+      const { result } = await runPipeline(
+        TEST_TARGET,
+        { ...stages, repair: repair([]) },
+        deps(clock).deps,
+      );
+
+      expect(failure(result.record)).toMatchObject({
+        code: 'SETUP_BUILD_FAILED',
+        stage: 'environment',
+      });
+      expect(result.record.setupAttempts.map((attempt) => attempt.outcome)).toEqual([
+        'setup-failed',
+        'setup-failed',
+        'setup-failed',
+      ]);
+      expect(result.recipe).toEqual(repaired);
+    });
   });
 
   it('runs cleanup hooks in reverse order even when one fails, and fails an otherwise good run', async () => {

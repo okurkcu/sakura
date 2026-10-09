@@ -37,7 +37,7 @@ packages/
 fixtures/                 @bdiff/fixtures workspace package
   sample-next-app/        Small Next.js app (ground truth); its own project, not linted by us
   branches/<name>/        Files each PR branch adds or replaces on top of main
-  branches.ts             PR branch definitions
+  branches.ts             PR branch definitions, plus variant branches (e.g. one whose setup needs repair)
   build-fixture-repo.ts   Builds a deterministic git repo with known PR branches
   expected.json           Expected changed files, impact + findings per branch (ExpectedSchema)
 scripts/                  Dev scripts (dataset builder)
@@ -69,7 +69,7 @@ interpret/     findings → explanation
 
 ```
 main chain (stops at the first error):
-  workspace → impact ─(skip? stop)→ recipe → environment(base, head)
+  workspace → impact ─(skip? stop)→ recipe → environment(base, head)   (setup failure? → repair (LLM) → environment, ≤ 3×)
     → probe-ui(baseA, baseB, head) → probe-api(baseA, baseB, head) → diff + noise filter → interpret (LLM)
 finalization (always, also after failure, skip, abort or timeout):
   cleanup hooks (LIFO) → report → final record → run.json + results.csv (metrics)
@@ -162,6 +162,8 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 **Repo cache.** The workspace stage keeps one bare clone per repository in `~/.cache/bdiff/repos/<slug>-<hash8>` (`BDIFF_CACHE_DIR` overrides) and only fetches on later runs. All git calls go through `createGit` (`workspace/git.ts`): no user hooks, no credential prompts, no LFS downloads, https and local transports only.
 
 **Recipes.** The recipe stage turns the head checkout into a `Recipe` with pure detectors (`packages/core/src/recipe/detect-*.ts`) over a `RepoFiles` snapshot; each detector is unit-tested with in-memory file trees (`createRepoFiles`). Commands are argv arrays, never shell strings: `installCmd` runs in `installRoot`, everything else in `appRoot`. Only example env files are read, never a real `.env`. Recipes are cached in `~/.cache/bdiff/recipes/` keyed by repository and invalidated by a fingerprint of manifests, lockfiles and Node version files; entries with `source: 'llm'` (repair loop) are reused the same way. Missing information throws `SETUP_UNSUPPORTED`.
+
+**Setup repair.** A repairable setup failure (`SETUP_UNSUPPORTED` from the recipe stage; install, db, build, start or timeout failures from the environment stage) enters a loop the orchestrator runs (`runSetup`, `pipeline/setup-loop.ts`): the repair stage (`recipe/repair/`, `propose`) shows the LLM the error, the last 150 log lines of the failing side, the recipe (a `fallbackRecipe` when detection found none), earlier attempts and parts of the head checkout (depth-limited tree, `package.json`s, example env files, README setup sections; never a real `.env`), and gets back a `RecipePatch`: JSON, never shell, limited to env values, Node version, package manager, commands, app root, port and health path. The patch is applied only if `applyRecipePatch` accepts it: **every command must pass the allowlist** (`commandProblem`: the recipe's package manager installing or running a `package.json` script, `next`/`prisma`/`drizzle-kit` through it or `npx`, `node <repo file>`), the app root must hold a `package.json` and the Node version must be supported; otherwise the attempt is `rejected`. The environment stage then runs again (it sets the previous attempt aside first: logs kept as `<side>-attempt-<n>.log`, run time added, project removed). At most 3 attempts (`fast` tier, `smart` for the last) and $0.50 of LLM spend per run (`REPAIR_BUDGET_USD`, within `--budget`). Every attempt goes to `run.json` (`setupAttempts`). When the apps start with a patched recipe, `keep` caches it with `source: 'llm'`. **No LLM access (no credentials, refusal, budget) ends the loop and the run fails with the original setup error**, so a run without a key behaves as before. Tests use `FakeLlmClient`; `e2e/setup-repair.docker.test.ts` runs the loop on the fixture's `variant/needs-repair` branches.
 
 **Environments.** The environment stage writes `runs/<id>/compose.yml` (project `bdiff-<runId>`), copies each worktree into its app container with `docker compose cp` (never a bind mount), and runs the recipe through a generated shell script whose arguments are all quoted; each setup phase exits with its own code (`SETUP_EXIT_CODES`), mapped to `SETUP_*_FAILED`. The host only ever runs `docker` (and `git` in the workspace stage). Every `$` in the compose file is escaped because env values come from the repository. The `docker compose down -v` cleanup hook is registered before anything is created.
 

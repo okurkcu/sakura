@@ -6,6 +6,7 @@ export * from './interpretation.js';
 export * from './json.js';
 export * from './probe-error.js';
 export * from './recipe.js';
+export * from './setup-repair.js';
 export * from './stage.js';
 export * from './target.js';
 export * from './ui-capture.js';

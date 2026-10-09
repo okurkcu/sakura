@@ -25,13 +25,13 @@ Flags take precedence over environment variables, which take precedence over def
 
 Other environment variables:
 
-| Env                  | Meaning                                                                                                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BDIFF_TOOL_VERSION` | Overrides the tool version recorded in `run.json` (otherwise `GITHUB_SHA`, then the git SHA of the bdiff checkout, `-dirty` if it has uncommitted changes).               |
-| `BDIFF_PRICING`      | Path of the pricing table; default `config/pricing.json` in the bdiff checkout.                                                                                           |
-| `BDIFF_CACHE_DIR`    | Cache of bare repository clones (`repos/`) and detected recipes (`recipes/`), reused across runs. Default `$XDG_CACHE_HOME/bdiff`, else `~/.cache/bdiff`. Safe to delete. |
-| `ANTHROPIC_API_KEY`  | Claude API key for the LLM stages (an `ant auth login` profile also works). Only needed when a run calls the LLM. Never logged or recorded.                               |
-| `GITHUB_TOKEN`       | Optional GitHub token for fetching PR text. Never logged or recorded.                                                                                                     |
+| Env                  | Meaning                                                                                                                                                                                              |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BDIFF_TOOL_VERSION` | Overrides the tool version recorded in `run.json` (otherwise `GITHUB_SHA`, then the git SHA of the bdiff checkout, `-dirty` if it has uncommitted changes).                                          |
+| `BDIFF_PRICING`      | Path of the pricing table; default `config/pricing.json` in the bdiff checkout.                                                                                                                      |
+| `BDIFF_CACHE_DIR`    | Cache of bare repository clones (`repos/`) and detected recipes (`recipes/`), reused across runs. Default `$XDG_CACHE_HOME/bdiff`, else `~/.cache/bdiff`. Safe to delete.                            |
+| `ANTHROPIC_API_KEY`  | Claude API key for the LLM stages: setup repair, generated API requests and interpretation (an `ant auth login` profile also works). Only needed when a run calls the LLM. Never logged or recorded. |
+| `GITHUB_TOKEN`       | Optional GitHub token for fetching PR text. Never logged or recorded.                                                                                                                                |
 
 ## Output
 
@@ -106,6 +106,10 @@ docker compose ls --all --quiet --filter name=bdiff- | xargs -n1 -I{} docker com
 ```
 
 Each app container gets 2 CPUs and 4 GB of memory; its port is published on `127.0.0.1` only. Setup (install, database, build, start) has 10 minutes. The logs of each side are saved in `runs/<runId>/logs/{base,head}.log`.
+
+## Setup repair
+
+When the app's setup fails (no recipe could be detected, or install, database setup, build, start or the health check failed), the LLM proposes a fix to the recipe and bdiff tries again, at most 3 times and for at most $0.50 of LLM spend per run (within `--budget`). The fix is data, never a shell command: it can set environment variables and change the Node version, package manager, install, build, start and database commands, app root, port and health path. Commands are limited to the package manager installing or running a script of the repository's `package.json`, `next`, `prisma` or `drizzle-kit` through it or `npx`, and `node <file>` for a file of the repository; anything else is rejected and costs an attempt. Commands still run only inside the containers. Each attempt is recorded in `run.json` (`setupAttempts`); the logs of a failed attempt are kept as `runs/<runId>/logs/<side>-attempt-<n>.log`. A recipe that worked is cached, so later runs of the same repository skip the repair. Without credentials (or once a budget is spent) the run fails with the original setup error, as it would without repair.
 
 ## Interpretation
 

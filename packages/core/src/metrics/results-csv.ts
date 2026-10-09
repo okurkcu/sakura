@@ -24,6 +24,7 @@ const COLUMNS: readonly (readonly [string, (record: RunRecord) => CsvValue])[] =
   ...StageNameSchema.options.map(
     (stage) => [`ms_${stage.replaceAll('-', '_')}`, (r: RunRecord) => stageMs(r, stage)] as const,
   ),
+  ['setup_attempts', (r) => r.setupAttempts.length],
   ['compute_seconds_base', (r) => r.computeSeconds.base],
   ['compute_seconds_head', (r) => r.computeSeconds.head],
   ['llm_calls', (r) => r.totals.llmCalls],

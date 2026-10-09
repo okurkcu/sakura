@@ -130,6 +130,7 @@ describe('enums', () => {
       'workspace',
       'recipe',
       'environment',
+      'repair',
       'impact',
       'probe-ui',
       'probe-api',

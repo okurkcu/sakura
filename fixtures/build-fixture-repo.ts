@@ -6,13 +6,19 @@ import { pathToFileURL } from 'node:url';
 import { BdiffError, createExecaExec, nodeFileSystem } from '@bdiff/core';
 import type { Exec, FileSystem } from '@bdiff/core';
 
-import { BASE_BRANCH, BRANCH_SPECS } from './branches.js';
+import {
+  BASE_BRANCH,
+  BRANCH_SPECS,
+  PR_BRANCHES,
+  VARIANT_BRANCHES,
+  VARIANT_SPECS,
+} from './branches.js';
 import type { FixtureBranch } from './branches.js';
 
 /** Directory holding `sample-next-app/` and `branches/`. */
 const FIXTURES_DIR = import.meta.dirname;
 const GIT_TIMEOUT_MS = 30_000;
-/** Commit time of `main`; each PR branch is committed one hour after the previous one. */
+/** Commit time of `main`; each further branch is committed one hour after the previous one. */
 const BASE_COMMIT_TIME = Date.parse('2026-01-01T00:00:00Z');
 const IGNORED_DIRS = ['node_modules', '.next'];
 
@@ -49,8 +55,9 @@ export interface FixtureRepo {
 }
 
 /**
- * Creates a git repository from the sample app: `main` holds the app, and each PR branch applies
- * its overlay on top of `main` in a single commit. Deterministic: the same sources always produce
+ * Creates a git repository from the sample app: `main` holds the app, each PR branch applies its
+ * overlay on top of `main` in a single commit, and each variant branch its overlay on top of its
+ * `from` branch. Deterministic: the same sources always produce
  * the same commit SHAs. Leaves `main` checked out.
  *
  * @throws BdiffError `INVALID_INPUT` if `targetDir` is not empty, `GIT_FAILED` if a git command fails.
@@ -101,16 +108,21 @@ export async function buildFixtureRepo(options: BuildFixtureRepoOptions): Promis
       BASE_COMMIT_TIME + (index + 1) * 3_600_000,
     );
   }
+  for (const [index, spec] of VARIANT_SPECS.entries()) {
+    await git(['checkout', '--quiet', '-b', spec.branch, spec.from]);
+    await copyTree(fs, path.join(sourceDir, 'branches', spec.overlay), targetDir);
+    await git(['add', '--all']);
+    await git(
+      ['commit', '--quiet', '--message', spec.message],
+      BASE_COMMIT_TIME + (BRANCH_SPECS.length + index + 1) * 3_600_000,
+    );
+  }
   await git(['checkout', '--quiet', BASE_BRANCH]);
 
-  const sha = (branch: FixtureBranch) => git(['rev-parse', branch]);
-  const commits: Record<FixtureBranch, string> = {
-    main: await sha('main'),
-    'pr/ui-change': await sha('pr/ui-change'),
-    'pr/api-breaking': await sha('pr/api-breaking'),
-    'pr/refactor-no-change': await sha('pr/refactor-no-change'),
-    'pr/docs-only': await sha('pr/docs-only'),
-  };
+  const commits = {} as Record<FixtureBranch, string>;
+  for (const branch of [BASE_BRANCH, ...PR_BRANCHES, ...VARIANT_BRANCHES] as const) {
+    commits[branch] = await git(['rev-parse', branch]);
+  }
   return { path: targetDir, commits };
 }
 

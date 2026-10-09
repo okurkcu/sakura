@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { RunIdSchema } from './run-id.js';
 import { ApiRequestSchema } from '../domain/api-probe.js';
+import { SetupAttemptSchema } from '../domain/setup-repair.js';
 import { StageNameSchema } from '../domain/stage.js';
 import { TargetSchema } from '../domain/target.js';
 import { FailureRecordSchema } from '../errors/failure-record.js';
@@ -92,6 +93,11 @@ const runRecordBase = z.strictObject({
    * to `null` so records written before it existed still read.
    */
   riskLevel: z.enum(['low', 'medium', 'high']).nullable().default(null),
+  /**
+   * Attempts of the setup repair loop, oldest first; empty when setup needed no repair. Defaults to
+   * empty so records written before it existed still read.
+   */
+  setupAttempts: z.array(SetupAttemptSchema).default([]),
 });
 
 /**
