@@ -3,6 +3,7 @@ export * from './fake-exec.js';
 export * from './fake-http.js';
 export * from './fake-llm-client.js';
 export * from './images.js';
+export * from './memory-file-system.js';
 export * from './memory-metrics-store.js';
 export * from './run-records.js';
 export * from './stage-context.js';

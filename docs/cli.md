@@ -13,16 +13,17 @@ From a build, the same command is `node packages/cli/dist/main.js run …` (pack
 
 Compares the behavior of `--base` and `--head` of a repository, or of a GitHub pull request given by its URL, and writes a run record. It needs a running Docker daemon and, for the UI probe, Chromium installed with `pnpm browser:install`; without it the run fails at `probe-ui` with `BROWSER_UNAVAILABLE`.
 
-| Flag                  | Env                 | Default  | Meaning                                                                              |
-| --------------------- | ------------------- | -------- | ------------------------------------------------------------------------------------ |
-| `--repo <url\|path>`  |                     | required | Repository: HTTPS URL or local path. Other transports (ssh, `file://`) are rejected. |
-| `--base <ref>`        |                     | required | Base ref (branch, tag or SHA).                                                       |
-| `--head <ref>`        |                     | required | Head ref. With `--pr`, falls back to GitHub's `pull/<n>/head` (fork PRs).            |
-| `--pr <number>`       |                     |          | Pull request number, positive integer. Recorded, and used to fetch PR text.          |
-| `--out <dir>`         | `BDIFF_OUT`         | `.bdiff` | Output root, relative to the working directory.                                      |
-| `--timeout <minutes>` | `BDIFF_TIMEOUT_MIN` | `20`     | Limit for the whole run, `0 < minutes ≤ 1440`. Decimals allowed.                     |
-| `--budget <usd>`      | `BDIFF_BUDGET_USD`  | `1`      | LLM spend cap for the run, `0 ≤ usd ≤ 100`. `0` allows no LLM calls.                 |
-| `--log-level <level>` | `BDIFF_LOG_LEVEL`   | `info`   | `debug`, `info`, `warn` or `error`.                                                  |
+| Flag                  | Env                 | Default   | Meaning                                                                              |
+| --------------------- | ------------------- | --------- | ------------------------------------------------------------------------------------ |
+| `--repo <url\|path>`  |                     | required  | Repository: HTTPS URL or local path. Other transports (ssh, `file://`) are rejected. |
+| `--base <ref>`        |                     | required  | Base ref (branch, tag or SHA).                                                       |
+| `--head <ref>`        |                     | required  | Head ref. With `--pr`, falls back to GitHub's `pull/<n>/head` (fork PRs).            |
+| `--pr <number>`       |                     |           | Pull request number, positive integer. Recorded, and used to fetch PR text.          |
+| `--out <dir>`         | `BDIFF_OUT`         | `.bdiff`  | Output root, relative to the working directory.                                      |
+| `--timeout <minutes>` | `BDIFF_TIMEOUT_MIN` | `20`      | Limit for the whole run, `0 < minutes ≤ 1440`. Decimals allowed.                     |
+| `--budget <usd>`      | `BDIFF_BUDGET_USD`  | `1`       | LLM spend cap for the run, `0 ≤ usd ≤ 100`. `0` allows no LLM calls.                 |
+| `--log-level <level>` | `BDIFF_LOG_LEVEL`   | `info`    | `debug`, `info`, `warn` or `error`.                                                  |
+| `--llm <mode>`        | `BDIFF_LLM`         | see below | `on`, `off` or `fake`: how the run uses the LLM.                                     |
 
 Flags take precedence over environment variables, which take precedence over defaults. Refs and the repository may not start with `-`. Every invalid value is reported at once.
 
@@ -49,6 +50,16 @@ Other environment variables:
 
 `GITHUB_TOKEN` is optional for public repositories. If GitHub has no such PR (or it is private), the run is recorded as failed at `workspace` with `PR_NOT_FOUND` and exits with 1. When GitHub's rate limit is reached, it is recorded as `HTTP_FAILED`, and the message suggests setting `GITHUB_TOKEN`.
 
+### LLM modes
+
+`--llm` defaults to `on` when `ANTHROPIC_API_KEY` is set and to `off` otherwise (with a one-line notice on stderr), so adding the key is all it takes to turn the model on.
+
+- `on`: the real model, for setup repair, generated API requests and the interpretation.
+- `off`: no model. The interpretation and setup repair are skipped (`skipped` in `stageTimings`), generated API requests are not sent (their endpoints are listed as not probed); every finding is still found and the run can succeed.
+- `fake`: canned answers, no model and no cost: a placeholder interpretation (every text starts with `[fake]`, breaking findings are flagged as unexpected) and one plain request per endpoint. Setup repair is skipped. For seeing the whole report and the dev panel without a key; never for measurements.
+
+The mode is recorded in `run.json` (`llmMode`) and shown in the report. `bdiff stats` counts only `on` runs for the hidden-changes criterion.
+
 ## Output
 
 - **stdout:** a short summary: outcome, findings by severity (also for a run that failed after the diff, e.g. at interpret), duration, LLM cost, run id, and the paths of the report and `run.json`:
@@ -63,7 +74,7 @@ Other environment variables:
   The paths are absolute. The `report:` line is left out when no report was written (a failing report stage).
 
 - **stderr:** structured JSON logs (pino) and usage errors.
-- **Files:** `<out>/runs/<runId>/run.json` and one row in `<out>/results.csv`; see [metrics.md](metrics.md).
+- **Files:** `<out>/runs/<runId>/run.json` and one row in `<out>/results.csv`, plus `events.jsonl` (live progress) and `result.json` (everything the run produced) for the dev panel; see [metrics.md](metrics.md).
 - **Report:** `<out>/runs/<runId>/report/index.html`, for every run (failed and skipped ones too). Open it from disk: it needs no server and loads nothing from the network. Screenshots, overlays and logs are linked by relative path, so keep the run directory together when moving it.
 
 ## Exit codes
@@ -81,7 +92,7 @@ On the first Ctrl+C (or SIGTERM), bdiff aborts the stage in progress, runs every
 
 ## `bdiff batch`
 
-Runs every pull request of a dataset file, unattended, one at a time (`--concurrency 2` runs two at once; more would compete for Docker resources). `--out`, `--timeout`, `--budget` and `--log-level` work as for `bdiff run`; timeout and budget apply to each run. Each entry is isolated: a run that fails is recorded like any other, and an entry that cannot even be recorded is reported and skipped. Each record carries the entry's id and tags (`dataset` in `run.json`, `dataset_id` in the CSV). At the end, `<out>/report/batch-index.html` lists the latest record of every entry, linked to its report.
+Runs every pull request of a dataset file, unattended, one at a time (`--concurrency 2` runs two at once; more would compete for Docker resources). `--out`, `--timeout`, `--budget`, `--log-level` and `--llm` work as for `bdiff run`; timeout and budget apply to each run. Each entry is isolated: a run that fails is recorded like any other, and an entry that cannot even be recorded is reported and skipped. Each record carries the entry's id and tags (`dataset` in `run.json`, `dataset_id` in the CSV). At the end, `<out>/report/batch-index.html` lists the latest record of every entry, linked to its report.
 
 The dataset (validated; an invalid one exits with 2 and lists every problem):
 
@@ -169,7 +180,7 @@ When the app's setup fails (no recipe could be detected, or install, database se
 
 ## Interpretation
 
-When a run has findings, the interpret stage asks the LLM to summarize them and to flag those the pull request's stated intent does not account for, with a risk level, a coverage note and up to three things to check by hand. The intent is read from GitHub when `--pr` is given for a github.com repository (`GITHUB_TOKEN` is optional for public repositories), else from the messages of the commits between base and head. It uses the `fast` tier, or `smart` when a finding is breaking or there are more than 15. A run without findings makes no LLM call. Without credentials, a run with findings fails at `interpret` with `LLM_UNAVAILABLE`; its findings are still recorded.
+When a run has findings, the interpret stage asks the LLM to summarize them and to flag those the pull request's stated intent does not account for, with a risk level, a coverage note and up to three things to check by hand. The intent is read from GitHub when `--pr` is given for a github.com repository (`GITHUB_TOKEN` is optional for public repositories), else from the messages of the commits between base and head. It uses the `fast` tier, or `smart` when a finding is breaking or there are more than 15. A run without findings makes no LLM call. Without credentials the LLM is off by default and the interpretation is skipped (see [LLM modes](#llm-modes)); with `--llm on` but no credentials, a run with findings fails at `interpret` with `LLM_UNAVAILABLE`, its findings still recorded.
 
 ## LLM configuration
 

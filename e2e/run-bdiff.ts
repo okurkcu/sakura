@@ -73,7 +73,8 @@ export async function runBdiffCli(
   argv: readonly string[],
   options: RunBdiffCliOptions,
 ): Promise<CliRun> {
-  const env = { BDIFF_CACHE_DIR: options.cacheDir, BDIFF_TOOL_VERSION: 'test' };
+  // The fake LLM stands in for the real model, so runs use LLM mode `on` without a key.
+  const env = { BDIFF_CACHE_DIR: options.cacheDir, BDIFF_TOOL_VERSION: 'test', BDIFF_LLM: 'on' };
   const real = createDefaultCliDeps(env);
   const deps: CliDeps = {
     ...real,

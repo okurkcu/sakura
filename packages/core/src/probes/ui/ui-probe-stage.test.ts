@@ -122,6 +122,21 @@ describe('createUiProbeStage', () => {
       expect((await stat(dir)).isDirectory()).toBe(true);
     }
     expect(counts).toEqual([{ routesProbed: 2 }]);
+    expect(
+      test.progress.map((event) => [
+        event.type,
+        'probeRun' in event ? event.probeRun : '',
+        'route' in event ? event.route : '',
+        'total' in event ? event.total : 0,
+      ]),
+    ).toEqual([
+      ['capture', 'baseA', '/', 2],
+      ['capture', 'baseA', '/login', 2],
+      ['capture', 'baseB', '/', 2],
+      ['capture', 'baseB', '/login', 2],
+      ['capture', 'head', '/', 2],
+      ['capture', 'head', '/login', 2],
+    ]);
     expect(fake.state).toEqual({ launches: 1, closes: 1 });
     expect(test.cleanups.map((cleanup) => cleanup.name)).toEqual(['browser']);
   });
@@ -143,9 +158,10 @@ describe('createUiProbeStage', () => {
         : observation(),
     );
 
+    const test = createTestStageContext({ outDir });
     const captures = await createUiProbeStage({ browser: fake.launcher, fs: nodeFileSystem }).run(
       { environment, impact: plan('/slow', '/ok') },
-      createTestStageContext({ outDir }).ctx,
+      test.ctx,
     );
 
     expect(captures).toHaveLength(6);
@@ -157,6 +173,10 @@ describe('createUiProbeStage', () => {
     expect(captures[0]).not.toHaveProperty('screenshot');
     expect(captures[1]).toMatchObject({ route: '/ok', status: 200 });
     expect(captures[1]).not.toHaveProperty('error');
+    expect(test.progress.slice(0, 2)).toMatchObject([
+      { type: 'capture', route: '/slow', status: 'error' },
+      { type: 'capture', route: '/ok', status: 'ok' },
+    ]);
   });
 
   it('does not start a browser when there are no pages to capture', async () => {

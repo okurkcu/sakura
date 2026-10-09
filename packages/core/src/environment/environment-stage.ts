@@ -107,6 +107,9 @@ export function createEnvironmentStage(
       await compose.copyInto(appService('head'), workspace.headPath, CONTAINER_SOURCE_DIR);
       await compose.up();
       ctx.logger.info('containers started; installing and building', { project });
+      for (const side of SIDES) {
+        ctx.progress({ type: 'environment-side', side, status: 'started' });
+      }
 
       const urls = {
         base: `http://${await compose.port(appService('base'), recipe.port)}`,
@@ -131,8 +134,14 @@ export function createEnvironmentStage(
           timeoutMs: setupTimeoutMs,
           intervalMs: deps.healthIntervalMs ?? HEALTH_INTERVAL_MS,
           requestTimeoutMs: HEALTH_REQUEST_TIMEOUT_MS,
+          onHealthy: (side) => {
+            ctx.progress({ type: 'environment-side', side, status: 'ready' });
+          },
         },
       );
+      if (outcome.kind !== 'healthy') {
+        ctx.progress({ type: 'environment-side', side: outcome.side, status: 'failed' });
+      }
       await saveLogs(deps, ctx, compose);
 
       if (outcome.kind === 'exited') {

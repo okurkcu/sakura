@@ -317,6 +317,24 @@ describe('waitUntilHealthy', () => {
     expect(http.requests.filter((url) => url === 'http://base/health')).toHaveLength(3);
   });
 
+  it('reports each side once, as soon as it first answers', async () => {
+    const clock = new FakeClock();
+    const http = new FakeHttp()
+      .on('http://base/health', 'refused', 'refused', 200)
+      .on('http://head/health', 200);
+    const healthy: string[] = [];
+
+    await drive(
+      clock,
+      waitUntilHealthy([target('base'), target('head')], {
+        ...options(clock, http),
+        onHealthy: (side) => healthy.push(side),
+      }),
+    );
+
+    expect(healthy).toEqual(['head', 'base']);
+  });
+
   it('reports an exited container immediately, without waiting for the timeout', async () => {
     const clock = new FakeClock();
     const http = new FakeHttp().on('http://base/health', 'refused');

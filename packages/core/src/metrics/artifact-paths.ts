@@ -15,8 +15,8 @@ const MAX_SLUG_LENGTH = 60;
  *
  * ```
  * <root>/results.csv
- * <root>/runs/<runId>/run.json | compose.yml | logs/ | worktrees/<side>/ | ui/<probeRun>/ | api/<probeRun>/
- *                     | diff/ | report/index.html
+ * <root>/runs/<runId>/run.json | result.json | events.jsonl | compose.yml | logs/ | worktrees/<side>/
+ *                     | ui/<probeRun>/ | api/<probeRun>/ | diff/ | report/index.html
  * ```
  */
 export interface ArtifactPaths {
@@ -26,6 +26,10 @@ export interface ArtifactPaths {
   readonly resultsCsv: string;
   readonly runDir: string;
   readonly runJson: string;
+  /** Everything the run produced (`RunResult`: the record plus each finished stage's output). */
+  readonly resultJson: string;
+  /** The run's progress events, one JSON line each, appended while it runs. */
+  readonly eventsJsonl: string;
   readonly composeFile: string;
   readonly logsDir: string;
   /** `logs/<name>.log`; `name` is a fixed identifier such as `base` or `head`. */
@@ -60,6 +64,8 @@ export function createArtifactPaths(root: string, runId: RunId): ArtifactPaths {
     resultsCsv: path.join(root, 'results.csv'),
     runDir,
     runJson: path.join(runDir, 'run.json'),
+    resultJson: path.join(runDir, 'result.json'),
+    eventsJsonl: path.join(runDir, 'events.jsonl'),
     composeFile: path.join(runDir, 'compose.yml'),
     logsDir,
     log: (name) => {

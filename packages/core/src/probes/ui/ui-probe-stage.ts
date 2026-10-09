@@ -77,6 +77,14 @@ export function createUiProbeStage(
               durationMs: capture.durationMs,
               ...(capture.error === undefined ? {} : { error: capture.error.code }),
             });
+            ctx.progress({
+              type: 'capture',
+              probeRun,
+              route: capture.route,
+              status: capture.error === undefined ? 'ok' : 'error',
+              ms: capture.durationMs,
+              total: impact.pages.length,
+            });
             captures.push(capture);
           }
         }

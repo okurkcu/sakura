@@ -1,3 +1,4 @@
+import type { RunResult } from '@bdiff/core';
 import { describe, expect, it } from 'vitest';
 
 import { batchIndexHtml } from './batch-index.js';
@@ -87,6 +88,25 @@ describe('runReportHtml', () => {
     const ui = (result.ui ?? []).map((capture) => ({ ...capture, screenshot: '/etc/passwd' }));
 
     expect(runReportHtml({ ...result, ui }, view)).not.toContain('passwd');
+  });
+
+  it.each([
+    ['off', 'llm off', 'No interpretation: the LLM was off (--llm off).'],
+    ['fake', 'llm fake', 'Canned answers, no model was called'],
+  ] as const)('says a run with the LLM %s did not use a model', (llmMode, badge, note) => {
+    const result: RunResult = { ...successResult() };
+    result.record = { ...result.record, llmMode };
+    if (llmMode === 'off') {
+      delete result.interpretation;
+    }
+    const page = runReportHtml(result, view);
+
+    expect(page).toContain(badge);
+    expect(page).toContain(note);
+  });
+
+  it('does not mention the LLM mode when the real model was used', () => {
+    expect(pages.success()).not.toContain('<dt>LLM</dt>');
   });
 
   it('escapes an XSS attempt in the PR title and everywhere else repository content shows', () => {

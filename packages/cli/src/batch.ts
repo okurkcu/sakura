@@ -5,6 +5,7 @@ import type {
   Clock,
   CostCalculator,
   FileSystem,
+  LlmMode,
   Logger,
   MetricsStore,
   PipelineStages,
@@ -94,6 +95,8 @@ export interface BatchSettings {
   readonly concurrency: number;
   readonly timeoutMs: number;
   readonly budgetUsd: number;
+  /** How every run uses the LLM; defaults to `on`. */
+  readonly llmMode?: LlmMode;
 }
 
 /** What a batch did. */
@@ -142,6 +145,7 @@ export async function executeBatch(
           signal: services.signal,
           store: services.store,
           dataset: entryDataset(entry),
+          ...(settings.llmMode === undefined ? {} : { llmMode: settings.llmMode }),
         });
         recorded.push(result.record);
         services.print(`${label}: ${outcomeLine(result.record)}`);

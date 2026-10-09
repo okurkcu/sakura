@@ -9,6 +9,8 @@ export interface StageTimer {
    * when `fn` throws; the error is rethrown unchanged.
    */
   measure<T>(stage: StageName, fn: () => Promise<T>): Promise<T>;
+  /** Records that `stage` was left out (0 ms, `skipped`), e.g. the interpretation with the LLM off. */
+  skip(stage: StageName): void;
   /** Every measured execution so far, in the order they started. */
   timings(): readonly StageTiming[];
 }
@@ -36,6 +38,9 @@ export function createStageTimer(clock: Clock): StageTimer {
         record('failed');
         throw error;
       }
+    },
+    skip: (stage) => {
+      timings.push({ stage, durationMs: 0, outcome: 'skipped' });
     },
     timings: () => [...timings],
   };

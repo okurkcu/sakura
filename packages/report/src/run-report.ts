@@ -36,6 +36,11 @@ const SEVERITIES: readonly Severity[] = ['breaking', 'warning', 'info'];
 const EMPTY_PROBE: ApiProbe = { requests: [], captures: [], notProbed: [] };
 const MAX_VALUE_CHARS = 200;
 
+const LLM_MODE_NOTES: Readonly<Record<'off' | 'fake', string>> = {
+  off: 'No model was used: the interpretation and setup repair were skipped. Set ANTHROPIC_API_KEY to turn it on.',
+  fake: 'Canned answers, no model was called: the interpretation is a placeholder. Set ANTHROPIC_API_KEY for a real one.',
+};
+
 const SKIP_REASONS: Readonly<Record<string, string>> = {
   'no-changes': 'The pull request changes no files.',
   'docs-only': 'The pull request only changes documentation.',
@@ -110,10 +115,25 @@ function header(result: RunResult): Html {
         LLM ${usd(record.totals.llmCostUsd)} · containers
         ${String(Math.round(record.totals.computeSeconds))} s
       </dd>
-      <dt>Run</dt>
-      <dd class="mono">${record.runId} · ${record.startedAt} · bdiff ${record.toolVersion}</dd>
+      ${runFacts(record)}
     </dl>
   </header>`;
+}
+
+/**
+ * The run's identity, and its LLM mode when it is not the real model: the reader must know the
+ * text is not a model's.
+ */
+function runFacts(record: RunResult['record']): Html {
+  const run = html`<dt>Run</dt>
+    <dd class="mono">${record.runId} · ${record.startedAt} · bdiff ${record.toolVersion}</dd>`;
+  return record.llmMode === 'on'
+    ? run
+    : html`${run}
+        <dt>LLM</dt>
+        <dd>
+          <span class="badge warning">llm ${record.llmMode}</span> ${LLM_MODE_NOTES[record.llmMode]}
+        </dd>`;
 }
 
 /** Why a failed or skipped run ended, first thing on its page. */
@@ -197,7 +217,11 @@ function summary(result: RunResult, findings: readonly Finding[]): Html | null {
     ${
       interpretation === undefined
         ? html`<p class="muted">
-            No interpretation: the run ended before the interpret stage finished.
+            ${
+              result.record.llmMode === 'off'
+                ? 'No interpretation: the LLM was off (--llm off).'
+                : 'No interpretation: the run ended before the interpret stage finished.'
+            }
           </p>`
         : html`<ul class="summary">
               ${interpretation.summary.map(

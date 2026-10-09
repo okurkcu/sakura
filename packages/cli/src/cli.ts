@@ -6,6 +6,7 @@ import {
   createAnthropicLlmClient,
   createArtifactPaths,
   createApiProbeStage,
+  createCannedLlmClient,
   createCostCalculator,
   createDependencyCruiserGraph,
   createDiffStage,
@@ -20,6 +21,7 @@ import {
   createRepairStages,
   createLogger,
   createMetricsStore,
+  createOffLlmClient,
   createOutputPaths,
   createUiProbeStage,
   createWorkspaceStage,
@@ -39,10 +41,12 @@ import type {
   FileSystem,
   Finding,
   LlmClient,
+  LlmMode,
   Logger,
   LogLevel,
   PipelineStages,
   PullRequestSource,
+  ResolvedLlmMode,
   RunResult,
   Target,
 } from '@bdiff/core';
@@ -155,6 +159,21 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
   };
 }
 
+/**
+ * The LLM client of a mode: the real one (`on`, built by `real`), one that refuses every call
+ * (`off`), or canned answers (`fake`).
+ */
+function createLlmClient(mode: LlmMode, real: () => LlmClient): LlmClient {
+  switch (mode) {
+    case 'on':
+      return real();
+    case 'off':
+      return createOffLlmClient();
+    case 'fake':
+      return createCannedLlmClient();
+  }
+}
+
 /** `BDIFF_CACHE_DIR`, else `$XDG_CACHE_HOME/bdiff`, else `~/.cache/bdiff`. */
 export function cacheDir(env: Readonly<Record<string, string | undefined>>): string {
   return (
@@ -189,6 +208,7 @@ export async function runCli(
   const timeoutOption = `run timeout in minutes (env ${RUN_ENV.timeoutMinutes}, default ${String(RUN_DEFAULTS.timeoutMinutes)})`;
   const budgetOption = `LLM budget in USD (env ${RUN_ENV.budgetUsd}, default ${String(DEFAULT_BUDGET_USD)})`;
   const logLevelOption = `debug, info, warn or error (env ${RUN_ENV.logLevel})`;
+  const llmOption = `on, off or fake (env ${RUN_ENV.llmMode}; default on with ANTHROPIC_API_KEY, else off)`;
   program
     .command('run')
     .description(
@@ -203,6 +223,7 @@ export async function runCli(
     .option('--timeout <minutes>', timeoutOption)
     .option('--budget <usd>', budgetOption)
     .option('--log-level <level>', logLevelOption)
+    .option('--llm <mode>', llmOption)
     .action((prUrl: string | undefined, flags: RunFlags) => {
       command = {
         name: 'run',
@@ -230,6 +251,7 @@ export async function runCli(
     .option('--timeout <minutes>', `${timeoutOption}, per run`)
     .option('--budget <usd>', `${budgetOption}, per run`)
     .option('--log-level <level>', logLevelOption)
+    .option('--llm <mode>', llmOption)
     .action((dataset: string, flags: BatchFlags) => {
       command = { name: 'batch', dataset, flags };
     });
@@ -273,6 +295,7 @@ interface Session {
   readonly interrupted: () => boolean;
   readonly costs: CostCalculator;
   readonly llm: LlmClient;
+  readonly llmMode: LlmMode;
   readonly toolVersion: string;
 }
 
@@ -283,9 +306,18 @@ interface Session {
 async function withSession(
   io: CliIo,
   deps: CliDeps,
-  logLevel: LogLevel,
+  options: { readonly logLevel: LogLevel; readonly llm: ResolvedLlmMode },
   body: (session: Session) => Promise<number>,
 ): Promise<number> {
+  const { logLevel } = options;
+  const llmMode = options.llm.mode;
+  if (options.llm.defaulted) {
+    io.stderr.write(
+      'bdiff: ANTHROPIC_API_KEY is not set, so the LLM is off (no interpretation, no setup repair); --llm fake shows canned answers\n',
+    );
+  } else if (llmMode === 'fake') {
+    io.stderr.write('bdiff: --llm fake: interpretations are canned, no model is called\n');
+  }
   const logger = deps.createLogger(logLevel);
   // Only a stop signal aborts this controller, so `aborted` means "interrupted".
   const controller = new AbortController();
@@ -306,10 +338,11 @@ async function withSession(
 
   try {
     const pricing = await loadPricingTable(deps.fs, deps.pricingPath);
-    // Credentials are only needed by a run that calls the LLM; the SDK reads them from the env.
-    const llm = createAnthropicLlmClient({
-      config: await loadLlmConfig(deps.fs, deps.llmConfigPath, pricing),
-    });
+    const llmConfig = await loadLlmConfig(deps.fs, deps.llmConfigPath, pricing);
+    const llm = createLlmClient(llmMode, () =>
+      // Credentials are only needed by a run that calls the LLM; the SDK reads them from the env.
+      createAnthropicLlmClient({ config: llmConfig }),
+    );
     const toolVersion = await resolveToolVersion({
       env: io.env,
       exec: deps.exec,
@@ -323,6 +356,7 @@ async function withSession(
       interrupted,
       costs: createCostCalculator(pricing),
       llm,
+      llmMode,
       toolVersion,
     });
   } catch (error) {
@@ -342,7 +376,7 @@ async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
   } catch (error) {
     return usage(io, 'run', error);
   }
-  return withSession(io, deps, config.logLevel, async (session) => {
+  return withSession(io, deps, config, async (session) => {
     const outDir = path.resolve(deps.cwd, config.outDir);
     let target: Target;
     let stages = deps.createStages({ llm: session.llm });
@@ -380,6 +414,7 @@ async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
       timeoutMs: config.timeoutMs,
       budgetUsd: config.budgetUsd,
       signal: session.signal,
+      llmMode: session.llmMode,
     });
     const reportPath = createArtifactPaths(outDir, result.record.runId).reportHtml;
     io.stdout.write(
@@ -413,7 +448,7 @@ async function batch(
     return usage(io, 'batch', error);
   }
   const { mode, concurrency, timeoutMs, budgetUsd } = config;
-  return withSession(io, deps, config.logLevel, async (session) => {
+  return withSession(io, deps, config, async (session) => {
     const outDir = path.resolve(deps.cwd, config.outDir);
     const before = await readRunRecords(deps.fs, outDir, session.logger);
     const plan = planBatch(entries, before.records, session.toolVersion, mode);
@@ -428,7 +463,7 @@ async function batch(
     );
     const outcome = await executeBatch(
       plan.toRun,
-      { outDir, concurrency, timeoutMs, budgetUsd },
+      { outDir, concurrency, timeoutMs, budgetUsd, llmMode: session.llmMode },
       {
         clock: deps.clock,
         fs: deps.fs,

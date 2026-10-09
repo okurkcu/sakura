@@ -196,7 +196,8 @@ export function groupStats(records: readonly RunRecord[]): GroupStats {
  * - few false differences: at most 10% of successful `refactor` PRs (no behavior change expected)
  *   have a finding;
  * - the behavior diff shows something the code diff hides: at least one run has a finding the
- *   interpretation flagged as unexpected for the PR's intent.
+ *   interpretation flagged as unexpected for the PR's intent. Only runs with the real model
+ *   (`llmMode: on`) count: `off` runs have no interpretation and `fake` ones a canned one.
  *
  * Pure.
  */
@@ -207,7 +208,8 @@ export function evaluateCriteria(records: readonly RunRecord[]): CriterionResult
   );
   const refactorsWithFindings = refactors.filter((record) => record.counts.findings > 0);
   const falseRate = ratio(refactorsWithFindings.length, refactors.length);
-  const unexpected = records.filter((record) => record.findingSummary.unexpected > 0);
+  const interpreted = records.filter((record) => record.llmMode === 'on');
+  const unexpected = interpreted.filter((record) => record.findingSummary.unexpected > 0);
   const median = overall.durationMs.median;
   return [
     {
@@ -242,8 +244,11 @@ export function evaluateCriteria(records: readonly RunRecord[]): CriterionResult
     {
       id: 'hidden-changes',
       description: 'Some PRs show a behavior change their intent does not account for',
-      measured: `${String(unexpected.length)} run(s) with an unexpected finding`,
-      verdict: records.length === 0 ? 'n/a' : unexpected.length > 0 ? 'pass' : 'fail',
+      measured:
+        interpreted.length === 0
+          ? 'no runs with the LLM on'
+          : `${String(unexpected.length)} run(s) with an unexpected finding`,
+      verdict: interpreted.length === 0 ? 'n/a' : unexpected.length > 0 ? 'pass' : 'fail',
     },
   ];
 }
