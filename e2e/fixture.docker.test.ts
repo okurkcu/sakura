@@ -1,26 +1,24 @@
-import { EventEmitter } from 'node:events';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { createDefaultCliDeps, EXIT_CODES, runCli } from '@bdiff/cli';
-import type { CliDeps, CliIo } from '@bdiff/cli';
+import { EXIT_CODES } from '@bdiff/cli';
 import {
   createArtifactPaths,
   createExecaExec,
   INTERPRET_PURPOSE,
-  loadLlmConfig,
-  loadPricingTable,
   nodeFileSystem,
   RunRecordSchema,
 } from '@bdiff/core';
 import type { Finding, InterpretAnswer, LlmTier, RunRecord } from '@bdiff/core';
-import { createTestLogger, FakeLlmClient } from '@bdiff/core/testing';
+import { FakeLlmClient } from '@bdiff/core/testing';
 import { BASE_BRANCH, buildFixtureRepo, loadExpected, PR_BRANCHES } from '@bdiff/fixtures';
 import type { Expected, ExpectedFinding, FixtureRepo, PrBranch } from '@bdiff/fixtures';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { composeLeftovers } from './compose-leftovers.js';
+import { configuredModels, runBdiff } from './run-bdiff.js';
+import type { CliRun } from './run-bdiff.js';
 import { worktreeLeftovers } from './worktree-leftovers.js';
 
 const exec = createExecaExec();
@@ -75,13 +73,6 @@ function unexpectedHtml(report: string): string {
   return start === -1 ? '' : report.slice(start, report.indexOf('</div>', start));
 }
 
-/** What `bdiff run` printed and returned. */
-interface CliRun {
-  readonly exitCode: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
 describe('bdiff on every fixture branch (@docker)', () => {
   let root: string;
   let cacheDir: string;
@@ -94,13 +85,7 @@ describe('bdiff on every fixture branch (@docker)', () => {
     root = await mkdtemp(path.join(tmpdir(), 'bdiff-e2e-fixture-'));
     cacheDir = path.join(root, 'cache');
     expected = await loadExpected(nodeFileSystem);
-    const { llmConfigPath, pricingPath } = createDefaultCliDeps({});
-    const { tiers } = await loadLlmConfig(
-      nodeFileSystem,
-      llmConfigPath,
-      await loadPricingTable(nodeFileSystem, pricingPath),
-    );
-    models = { fast: tiers.fast.model, smart: tiers.smart.model };
+    models = await configuredModels();
     fixture = await buildFixtureRepo({
       targetDir: path.join(root, 'fixture'),
       exec,
@@ -114,54 +99,37 @@ describe('bdiff on every fixture branch (@docker)', () => {
   });
 
   /**
-   * Runs `bdiff run` in process with the CLI's real adapters and stages; only the LLM is replaced,
-   * by a {@link FakeLlmClient} that answers the interpret call with {@link scriptedInterpretation}
-   * of the diff stage's findings. Returns what it printed and the findings.
+   * Runs `bdiff run` on `branch` with a {@link FakeLlmClient} that answers the interpret call with
+   * {@link scriptedInterpretation} of the diff stage's findings. Returns what it printed and the
+   * findings.
    */
   async function bdiff(
     branch: PrBranch,
     outDir: string,
   ): Promise<CliRun & { findings: Finding[]; llm: FakeLlmClient }> {
     const llm = new FakeLlmClient({ models });
-    const env = { BDIFF_CACHE_DIR: cacheDir, BDIFF_TOOL_VERSION: 'test' };
-    const real = createDefaultCliDeps(env);
     let findings: Finding[] = [];
-    const deps: CliDeps = {
-      ...real,
+    const run = await runBdiff({
+      repo: fixture.path,
+      base: BASE_BRANCH,
+      head: branch,
+      outDir,
+      cacheDir,
       cwd: root,
-      createLogger: () => createTestLogger(),
-      createStages: (services) => {
-        const stages = real.createStages({ ...services, llm });
-        return {
-          ...stages,
-          diff: {
-            name: 'diff',
-            run: async (input, ctx) => {
-              findings = await stages.diff.run(input, ctx);
-              llm.on(INTERPRET_PURPOSE, scriptedInterpretation(findings));
-              return findings;
-            },
+      llm,
+      editStages: (stages) => ({
+        ...stages,
+        diff: {
+          name: 'diff',
+          run: async (input, ctx) => {
+            findings = await stages.diff.run(input, ctx);
+            llm.on(INTERPRET_PURPOSE, scriptedInterpretation(findings));
+            return findings;
           },
-        };
-      },
-    };
-    let stdout = '';
-    let stderr = '';
-    const io: CliIo = {
-      stdout: { write: (text: string) => (stdout += text) },
-      stderr: { write: (text: string) => (stderr += text) },
-      env,
-      signals: new EventEmitter(),
-      forceExit: (code) => {
-        throw new Error(`unexpected forced exit ${String(code)}`);
-      },
-    };
-    const exitCode = await runCli(
-      ['run', '--repo', fixture.path, '--base', BASE_BRANCH, '--head', branch, '--out', outDir],
-      io,
-      deps,
-    );
-    return { exitCode, stdout, stderr, findings, llm };
+        },
+      }),
+    });
+    return { ...run, findings, llm };
   }
 
   it.each(PR_BRANCHES)('%s: matches expected.json and leaves nothing behind', async (branch) => {
