@@ -5,7 +5,14 @@ Every bdiff run leaves two machine-readable traces under the output root (`.bdif
 - `runs/<runId>/run.json`: the complete record of one run.
 - `results.csv`: one row per run, across all runs, for quick analysis.
 
-Both are public contracts. Change them only deliberately: update this document in the same PR, and bump `schemaVersion` for any change that would break readers of existing `run.json` files.
+Both are public contracts. Two more files per run feed the dev panel (`bdiff ui`):
+
+- `runs/<runId>/events.jsonl`: the run's progress, one JSON event per line, appended as it happens (see [Events](#eventsjsonl)).
+- `runs/<runId>/result.json`: everything the run produced (`RunResult`: the record plus the output of every stage that finished: workspace, impact plan, recipe, captures, API probe, findings, interpretation), written just before `run.json`.
+
+Losing either never fails a run.
+
+The record and CSV are the contracts below. Change them only deliberately: update this document in the same PR, and bump `schemaVersion` for any change that would break readers of existing `run.json` files.
 
 ## Run ids
 
@@ -27,7 +34,7 @@ Written atomically: a temp file is written next to it and renamed, so a reader n
 | `status`         | `success` \| `failed` \| `skipped`      | How the run ended.                                                                                                                                                                                                                                                                       |
 | `failure`        | object, only when `status` is `failed`  | `code` (error code), `stage`, `message`, `details` (JSON) and `causes` (the error's cause chain).                                                                                                                                                                                        |
 | `skip`           | object, only when `status` is `skipped` | `reason`: `no-changes`, `docs-only`, `tests-only`, `ci-only`, `lockfile-only` or `non-runtime-only` (a mix of those kinds).                                                                                                                                                              |
-| `stageTimings`   | array                                   | One entry per stage execution, in start order: `stage`, `durationMs`, `outcome` (`success` \| `failed`). A stage may appear more than once.                                                                                                                                              |
+| `stageTimings`   | array                                   | One entry per stage execution, in start order: `stage`, `durationMs`, `outcome` (`success` \| `failed` \| `skipped`). A stage may appear more than once; a stage the LLM mode leaves out has one `skipped` entry of 0 ms.                                                                |
 | `computeSeconds` | `{ base, head }`                        | Container CPU time per side, in seconds.                                                                                                                                                                                                                                                 |
 | `llmUsage`       | array                                   | One entry per LLM call: `purpose`, `model`, token counts (see below) and `costUsd`.                                                                                                                                                                                                      |
 | `totals`         | object                                  | Sums over `llmUsage` (`llmCalls`, token counts, `llmCostUsd`) and `computeSeconds` (sum of both sides).                                                                                                                                                                                  |
@@ -37,6 +44,7 @@ Written atomically: a temp file is written next to it and renamed, so a reader n
 | `setupAttempts`  | array                                   | Attempts of the setup repair loop, oldest first (empty when setup needed no repair): `attempt`, `trigger` (`stage`, `code`, `side`), `tier`, `patch` (the recipe patch, or `null`), `outcome` (`repaired`, `setup-failed`, `rejected` or `no-patch`), `errorCode`, `problem`, `costUsd`. |
 | `dataset`        | object \| `null`                        | The dataset entry of a batch run (`bdiff batch`): `id` and `tags` (`difficulty`, `prType`, `author`); `null` for a single run.                                                                                                                                                           |
 | `findingSummary` | object                                  | Findings by severity (`info`, `warning`, `breaking`) and `unexpected`: how many the interpretation flagged as not accounted for by the PR's intent. Zero until the diff (and interpret) stage ran.                                                                                       |
+| `llmMode`        | `on` \| `off` \| `fake`                 | How the run used the LLM (`--llm`): the real model; none (findings not interpreted, setup repair skipped); or canned answers (`[fake]` texts, model `canned`, no cost). `on` for records written before it existed.                                                                      |
 
 Token counts per LLM call mirror the API's `usage` object:
 
@@ -137,3 +145,18 @@ input × inputPerMTok + output × outputPerMTok + cacheRead × cacheReadPerMTok
 all divided by 1,000,000. Batch API and data-residency multipliers are not modelled; bdiff uses neither.
 
 Compute cost (container time) is recorded as `computeSeconds` only: wall-clock container run time, which is what CI runners bill, and which is known even for a container that exited during its build. Converting it to dollars is left to the stats step.
+
+## `events.jsonl`
+
+One JSON object per line, appended (and written through) as the run progresses; `at` is an ISO timestamp on every event. Readers should ignore a last line that does not parse: it may still be being written. The schema is `RunEventSchema` in `@bdiff/core`.
+
+| `type`             | Fields                                                         | When                                                                    |
+| ------------------ | -------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `run-started`      | `runId`, `target`, `toolVersion`, `llmMode`, `pid`             | First; `pid` tells a run in progress from one whose process is gone.    |
+| `stage-started`    | `stage`                                                        | A stage begins (again, in the setup repair loop).                       |
+| `stage-finished`   | `stage`, `durationMs`, `status` (`success` \| `skipped`)       | A stage ended; `skipped` (0 ms) when the LLM mode leaves it out.        |
+| `stage-failed`     | `stage`, `durationMs`, `code`                                  | A stage threw; `code` is its error code.                                |
+| `environment-side` | `side`, `status` (`started` \| `ready` \| `failed`)            | Each side's containers started, answered their health check, or failed. |
+| `capture`          | `probeRun`, `route`, `status` (`ok` \| `error`), `ms`, `total` | One page captured in one probe run; `total` pages per probe run.        |
+| `log`              | `level` (`info` \| `warn` \| `error`), `message`, `stage`      | A log line (no fields: details stay in the structured log).             |
+| `run-finished`     | `status`, `durationMs`, `failure` (`stage`, `code`)            | Last, after `run.json` was written.                                     |

@@ -20,8 +20,9 @@
     "fixture:dataset": "tsx --conditions=bdiff-source fixtures/fixture-dataset.ts",
     "browser:install": "pnpm --filter @bdiff/core exec playwright install --only-shell chromium",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "bdiff": "tsx --conditions=bdiff-source packages/cli/src/main.ts",
-    "candidates": "tsx --conditions=bdiff-source scripts/find-candidates.ts"
+    "bdiff": "tsx --env-file-if-exists=.env --conditions=bdiff-source packages/cli/src/main.ts",
+    "candidates": "tsx --conditions=bdiff-source scripts/find-candidates.ts",
+    "panel:demo": "tsx --conditions=bdiff-source packages/panel/tools/build-demo.ts"
   },
   "devDependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "^4.8.1",

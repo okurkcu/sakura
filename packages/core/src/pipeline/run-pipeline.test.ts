@@ -5,14 +5,20 @@ import { runPipeline } from './run-pipeline.js';
 import type { PipelineDeps } from './run-pipeline.js';
 import type { RunResult } from './run-result.js';
 import type { StageContext } from './stage.js';
+import type { Finding } from '../domain/finding.js';
 import type { StageName } from '../domain/stage.js';
 import { abortError } from '../errors/abort.js';
 import { BdiffError } from '../errors/bdiff-error.js';
+import { parseRunEvents, withoutTime } from '../events/run-event.js';
+import type { RunEventInput } from '../events/run-event.js';
 import { createInterpretStage } from '../interpret/interpret-stage.js';
+import { createArtifactPaths } from '../metrics/artifact-paths.js';
 import type { RunRecord } from '../metrics/run-record.js';
 import { FakeClock } from '../testing/fake-clock.js';
 import { FakeExec } from '../testing/fake-exec.js';
 import { FakeLlmClient } from '../testing/fake-llm-client.js';
+import { createMemoryFileSystem } from '../testing/memory-file-system.js';
+import type { MemoryFileSystem } from '../testing/memory-file-system.js';
 import { createMemoryMetricsStore } from '../testing/memory-metrics-store.js';
 import { createTestCostCalculator, TEST_RUN_ID, TEST_TARGET } from '../testing/run-records.js';
 import { createStubStages, STUB_RECIPE } from '../testing/stub-stages.js';
@@ -69,7 +75,7 @@ function deps(clock: FakeClock, overrides: Partial<PipelineDeps> = {}) {
   const logger = createTestLogger();
   const value: PipelineDeps = {
     clock,
-    fs: {} as PipelineDeps['fs'],
+    fs: createMemoryFileSystem(),
     logger,
     costs: createTestCostCalculator(),
     outDir: '/out/.bdiff',
@@ -112,6 +118,228 @@ const ALL_STAGES: StageName[] = [
 function failure(record: RunRecord) {
   return record.status === 'failed' ? record.failure : undefined;
 }
+
+const PATHS = createArtifactPaths('/out/.bdiff', TEST_RUN_ID);
+
+/** The events a run wrote, without their timestamps. */
+function eventsOf(fs: MemoryFileSystem): RunEventInput[] {
+  const text = fs.files.get(PATHS.eventsJsonl);
+  const { events, invalid } = parseRunEvents(typeof text === 'string' ? text : '');
+  expect(invalid).toBe(0);
+  return events.map(withoutTime);
+}
+
+/** `[type, stage, status or code]` of each stage event, in order. */
+function stageEvents(fs: MemoryFileSystem): [string, string, string?][] {
+  return eventsOf(fs).flatMap((event): [string, string, string?][] => {
+    switch (event.type) {
+      case 'stage-started':
+        return [[event.type, event.stage]];
+      case 'stage-finished':
+        return [[event.type, event.stage, event.status]];
+      case 'stage-failed':
+        return [[event.type, event.stage, event.code]];
+      default:
+        return [];
+    }
+  });
+}
+
+describe('runPipeline events, result.json and LLM modes', () => {
+  const memoryDeps = (clock: FakeClock, overrides: Partial<PipelineDeps> = {}) => {
+    const fs = createMemoryFileSystem();
+    return { fs, ...deps(clock, { fs, pid: 4242, ...overrides }) };
+  };
+
+  it('appends run, stage and log events as the run progresses, and writes result.json', async () => {
+    const clock = new FakeClock();
+    const { stages } = recordingStages(clock);
+    const { deps: d, fs } = memoryDeps(clock);
+
+    const { result } = await runPipeline(TEST_TARGET, stages, d);
+
+    const events = eventsOf(fs);
+    expect(events[0]).toEqual({
+      type: 'run-started',
+      runId: TEST_RUN_ID,
+      target: TEST_TARGET,
+      toolVersion: 'abc123',
+      llmMode: 'on',
+      pid: 4242,
+    });
+    expect(events.at(-1)).toEqual({
+      type: 'run-finished',
+      status: 'success',
+      durationMs: result.record.durationMs,
+    });
+    expect(stageEvents(fs)).toEqual(
+      ALL_STAGES.flatMap((stage) => [
+        ['stage-started', stage],
+        ['stage-finished', stage, 'success'],
+      ]),
+    );
+    expect(events).toContainEqual({ type: 'log', level: 'info', message: 'run started' });
+    expect(events).toContainEqual({
+      type: 'log',
+      level: 'info',
+      message: 'stage finished',
+      stage: 'diff',
+    });
+    expect(JSON.parse(String(fs.files.get(PATHS.resultJson)))).toEqual(
+      JSON.parse(JSON.stringify(result)),
+    );
+    expect(fs.files.has(`${PATHS.resultJson}.tmp`)).toBe(false);
+  });
+
+  it('reports a failing stage with its code, and the failure in run-finished', async () => {
+    const clock = new FakeClock();
+    const { stages } = recordingStages(clock, {
+      probeUi: () => Promise.reject(new BdiffError('DOCKER_UNAVAILABLE', 'no docker')),
+    });
+    const { deps: d, fs } = memoryDeps(clock);
+
+    await runPipeline(TEST_TARGET, stages, d);
+
+    expect(stageEvents(fs)).toContainEqual(['stage-failed', 'probe-ui', 'DOCKER_UNAVAILABLE']);
+    expect(eventsOf(fs).at(-1)).toMatchObject({
+      type: 'run-finished',
+      status: 'failed',
+      failure: { stage: 'probe-ui', code: 'DOCKER_UNAVAILABLE' },
+    });
+  });
+
+  it('passes stage progress (captures, environment sides) through to the events', async () => {
+    const clock = new FakeClock();
+    const { stages } = recordingStages(clock, {
+      probeUi: (input, ctx) => {
+        ctx.progress({
+          type: 'capture',
+          probeRun: 'baseA',
+          route: '/login',
+          status: 'ok',
+          ms: 120,
+          total: 1,
+        });
+        return createStubStages().probeUi.run(input as never, ctx);
+      },
+    });
+    const { deps: d, fs } = memoryDeps(clock);
+
+    await runPipeline(TEST_TARGET, stages, d);
+
+    expect(eventsOf(fs)).toContainEqual({
+      type: 'capture',
+      probeRun: 'baseA',
+      route: '/login',
+      status: 'ok',
+      ms: 120,
+      total: 1,
+    });
+  });
+
+  it('never fails a run because its events or result.json cannot be written', async () => {
+    const clock = new FakeClock();
+    const { stages } = recordingStages(clock);
+    const { deps: d, fs, store, logger } = memoryDeps(clock);
+    fs.failOn('appendFile', 'writeFile');
+
+    const { result } = await runPipeline(TEST_TARGET, stages, d);
+
+    expect(result.record.status).toBe('success');
+    expect(store.written).toEqual([result.record]);
+    expect(logger.entries.map((entry) => [entry.level, entry.message])).toEqual(
+      expect.arrayContaining([
+        ['warn', 'run events could not be written; live progress stops'],
+        ['error', 'result.json could not be written'],
+      ]),
+    );
+  });
+
+  it('with the LLM off, skips the interpretation of findings and records the mode', async () => {
+    const clock = new FakeClock();
+    const finding: Finding = {
+      id: 'f1',
+      kind: 'visual',
+      severity: 'info',
+      location: { route: '/' },
+      evidence: [],
+    };
+    const { stages, calls } = recordingStages(clock, { diff: () => Promise.resolve([finding]) });
+    const { deps: d, fs } = memoryDeps(clock, { llmMode: 'off' });
+
+    const { result } = await runPipeline(TEST_TARGET, stages, d);
+
+    expect(calls).not.toContain('interpret');
+    expect(result.record).toMatchObject({ status: 'success', llmMode: 'off', riskLevel: null });
+    expect(result.interpretation).toBeUndefined();
+    expect(result.record.stageTimings).toContainEqual({
+      stage: 'interpret',
+      durationMs: 0,
+      outcome: 'skipped',
+    });
+    expect(stageEvents(fs)).toContainEqual(['stage-finished', 'interpret', 'skipped']);
+    expect(eventsOf(fs)[0]).toMatchObject({ type: 'run-started', llmMode: 'off' });
+  });
+
+  it('with the LLM off, still interprets a run without findings (no LLM call needed)', async () => {
+    const clock = new FakeClock();
+    const { stages, calls } = recordingStages(clock);
+    const { deps: d } = memoryDeps(clock, { llmMode: 'off' });
+
+    const { result } = await runPipeline(TEST_TARGET, stages, d);
+
+    expect(calls).toContain('interpret');
+    expect(result.record.stageTimings.some((timing) => timing.outcome === 'skipped')).toBe(false);
+  });
+
+  it.each(['off', 'fake'] as const)(
+    'with the LLM %s, skips the setup repair and fails with the setup error',
+    async (llmMode) => {
+      const clock = new FakeClock();
+      const { stages } = recordingStages(clock, {
+        environment: () => Promise.reject(new BdiffError('SETUP_BUILD_FAILED', 'build failed')),
+      });
+      let proposed = false;
+      const repair: PipelineStages['repair'] = {
+        ...stages.repair,
+        propose: {
+          name: 'repair',
+          run: () => {
+            proposed = true;
+            return Promise.reject(new Error('must not be called'));
+          },
+        },
+      };
+      const { deps: d, fs } = memoryDeps(clock, { llmMode });
+
+      const { result } = await runPipeline(TEST_TARGET, { ...stages, repair }, d);
+
+      expect(proposed).toBe(false);
+      expect(failure(result.record)).toMatchObject({
+        stage: 'environment',
+        code: 'SETUP_BUILD_FAILED',
+      });
+      expect(result.record.setupAttempts).toEqual([]);
+      expect(result.record.stageTimings).toContainEqual({
+        stage: 'repair',
+        durationMs: 0,
+        outcome: 'skipped',
+      });
+      expect(stageEvents(fs)).toContainEqual(['stage-finished', 'repair', 'skipped']);
+    },
+  );
+
+  it('with the LLM fake, still runs the interpretation and records the mode', async () => {
+    const clock = new FakeClock();
+    const { stages, calls } = recordingStages(clock);
+    const { deps: d } = memoryDeps(clock, { llmMode: 'fake' });
+
+    const { result } = await runPipeline(TEST_TARGET, stages, d);
+
+    expect(calls).toContain('interpret');
+    expect(result.record.llmMode).toBe('fake');
+  });
+});
 
 describe('runPipeline', () => {
   it('runs every stage in order, times them and records a success', async () => {

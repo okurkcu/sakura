@@ -185,6 +185,28 @@ describe('createExecaExec', () => {
       expect(error.code).toBe('EXEC_TIMEOUT');
     });
 
+    it('sends the chosen stop signal first and waits the grace time before SIGKILL', async () => {
+      const marker = path.join(workDir, 'stopped-by');
+      const script = `const fs = require('node:fs');
+for (const s of ['SIGINT', 'SIGTERM']) process.on(s, () => { fs.writeFileSync(${JSON.stringify(marker)}, s); setTimeout(() => process.exit(130), 300); });
+setInterval(() => {}, 1000);`;
+      const controller = new AbortController();
+      const running = exec.run(node, ['-e', script], {
+        ...options({ timeoutMs: 10_000 }),
+        signal: controller.signal,
+        stopSignal: 'SIGINT',
+        killGraceMs: 5_000,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const started = Date.now();
+      controller.abort(new Error('cancel'));
+
+      await expect(running).rejects.toThrow();
+      // Exited on its own after cleaning up, well before the grace time.
+      expect(Date.now() - started).toBeLessThan(4_000);
+      expect(await readFile(marker, 'utf8')).toBe('SIGINT');
+    });
+
     it('keeps the tail of stderr in the error details', async () => {
       const script = "process.stderr.write('building...\\n'); setInterval(() => {}, 1000);";
 

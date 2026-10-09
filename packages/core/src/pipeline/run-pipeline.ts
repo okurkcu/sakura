@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import { createCleanupRegistry } from './cleanup-registry.js';
 import type { PipelineStages } from './pipeline-stages.js';
 import type { RunResult, StageOutputs } from './run-result.js';
@@ -10,7 +12,9 @@ import type { Logger } from '../adapters/logger.js';
 import type { StageName } from '../domain/stage.js';
 import type { Target } from '../domain/target.js';
 import { abortError, throwIfAborted } from '../errors/abort.js';
-import { BdiffError } from '../errors/bdiff-error.js';
+import { BdiffError, isBdiffError } from '../errors/bdiff-error.js';
+import { createRunEventLog, teeLoggerToEvents } from '../events/event-log.js';
+import type { LlmMode } from '../llm/llm-mode.js';
 import { createArtifactPaths } from '../metrics/artifact-paths.js';
 import { summarizeFindings } from '../metrics/finding-summary.js';
 import { createMetricsStore } from '../metrics/metrics-store.js';
@@ -53,6 +57,14 @@ export interface PipelineDeps {
   readonly reportTimeoutMs?: number;
   /** The dataset entry of a batch run, recorded in `run.json`. */
   readonly dataset?: RunDataset;
+  /**
+   * How the run uses the LLM, recorded in `run.json`; defaults to `on`. With `off` the
+   * interpretation of findings is skipped (a run without findings still gets its deterministic
+   * one), and with `off` or `fake` so is the setup repair loop.
+   */
+  readonly llmMode?: LlmMode;
+  /** Process id recorded in the `run-started` event; defaults to this process. */
+  readonly pid?: number;
 }
 
 /** A finished run. */
@@ -66,9 +78,10 @@ export interface PipelineRun {
  *
  * `workspace → impact → (skipped? stop) → recipe → environment → probe-ui → probe-api → diff → interpret`
  *
- * (a repairable setup failure goes through the repair loop, `runSetup`), then, whatever happened: cleanup hooks (LIFO), report, final record, `run.json` + CSV row.
+ * (a repairable setup failure goes through the repair loop, `runSetup`), then, whatever happened: cleanup hooks (LIFO), report, final record, `result.json`, `run.json` + CSV row.
  * Stages are timed, the first error stops the chain, and a run timeout or external abort aborts
- * the stage in progress.
+ * the stage in progress. Progress (stages, captures, log lines) is appended to `events.jsonl` as
+ * it happens; losing it never fails the run.
  *
  * @throws BdiffError only when the run could not be recorded (invalid input, unwritable output).
  *   Every other failure is recorded in the returned result.
@@ -79,8 +92,10 @@ export async function runPipeline(
   deps: PipelineDeps,
 ): Promise<PipelineRun> {
   const { clock } = deps;
+  const llmMode = deps.llmMode ?? 'on';
   const runId = deps.runId ?? createRunId(clock);
   const recorder = createRunRecorder({
+    llmMode,
     runId,
     target,
     toolVersion: deps.toolVersion,
@@ -90,7 +105,13 @@ export async function runPipeline(
   });
   const paths = createArtifactPaths(deps.outDir, runId);
   const store = deps.store ?? createMetricsStore({ fs: deps.fs, rootDir: deps.outDir });
-  const logger = deps.logger.child({ runId });
+  const events = createRunEventLog({
+    fs: deps.fs,
+    clock,
+    logger: deps.logger.child({ runId }),
+    file: paths.eventsJsonl,
+  });
+  const logger = teeLoggerToEvents(deps.logger, events).child({ runId });
   const cleanup = createCleanupRegistry(
     clock,
     logger,
@@ -149,22 +170,56 @@ export async function runPipeline(
     setComputeSeconds: (side, seconds) => {
       recorder.setComputeSeconds(side, seconds);
     },
+    progress: (event) => {
+      events.emit(event);
+    },
   });
+
+  /** Times `fn` as `stage` and reports its start and end as events. */
+  const measured = async <O>(stage: StageName, fn: () => Promise<O>): Promise<O> => {
+    events.emit({ type: 'stage-started', stage });
+    const started = clock.monotonicMs();
+    const elapsed = () => Math.round(clock.monotonicMs() - started);
+    try {
+      const output = await recorder.timer.measure(stage, fn);
+      events.emit({ type: 'stage-finished', stage, durationMs: elapsed(), status: 'success' });
+      return output;
+    } catch (error) {
+      const code = isBdiffError(error) ? error.code : 'INTERNAL';
+      events.emit({ type: 'stage-failed', stage, durationMs: elapsed(), code });
+      throw error;
+    }
+  };
+  /** Records a stage the LLM mode leaves out. */
+  const skipStage = (stage: StageName): void => {
+    recorder.timer.skip(stage);
+    events.emit({ type: 'stage-finished', stage, durationMs: 0, status: 'skipped' });
+    logger.child({ stage }).info('stage skipped', { llmMode });
+  };
 
   let currentStage: StageName | undefined;
   const runStage = async <I, O>(stage: Stage<I, O>, input: I): Promise<O> => {
     throwIfAborted(run.signal);
     currentStage = stage.name;
-    logger.info('stage started', { stage: stage.name });
-    const output = await recorder.timer.measure(stage.name, () =>
+    const stageLogger = logger.child({ stage: stage.name });
+    stageLogger.info('stage started');
+    const output = await measured(stage.name, () =>
       raceAbort(stage.run(input, contextFor(stage.name, run.signal)), run.signal, () =>
         abortError(run.signal),
       ),
     );
-    logger.info('stage finished', { stage: stage.name });
+    stageLogger.info('stage finished');
     return output;
   };
 
+  events.emit({
+    type: 'run-started',
+    runId,
+    target: recorder.preview({ status: 'success' }).target,
+    toolVersion: deps.toolVersion,
+    llmMode,
+    pid: deps.pid ?? process.pid,
+  });
   logger.info('run started', { target });
   const outputs: StageOutputs = {};
   let outcome: RunOutcome;
@@ -177,6 +232,8 @@ export async function runPipeline(
       const setup = await runSetup(workspace, {
         stages,
         runStage,
+        // Only a real model can propose a repair.
+        ...(llmMode === 'on' ? {} : { maxAttempts: 0 }),
         spentUsd: () => recorder.spentUsd(),
         onAttempts: (attempts) => {
           recorder.setSetupAttempts(attempts);
@@ -186,6 +243,9 @@ export async function runPipeline(
         outputs.recipe = setup.recipe;
       }
       if (!setup.ok) {
+        if (llmMode !== 'on') {
+          skipStage('repair');
+        }
         // The setup failure, not the repair attempts after it, is why the run failed.
         currentStage = setup.stage;
         throw setup.error;
@@ -202,16 +262,21 @@ export async function runPipeline(
       recorder.setApiRequests(api.requests);
       const findings = (outputs.findings = await runStage(stages.diff, { impact, ui, api }));
       recorder.setFindingSummary(summarizeFindings(findings));
-      const interpretation = (outputs.interpretation = await runStage(stages.interpret, {
-        target,
-        workspace,
-        impact,
-        ui,
-        api,
-        findings,
-      }));
-      recorder.setRiskLevel(interpretation.riskLevel);
-      recorder.setFindingSummary(summarizeFindings(findings, interpretation));
+      // Without findings the interpretation needs no LLM, so it runs in every mode.
+      if (llmMode === 'off' && findings.length > 0) {
+        skipStage('interpret');
+      } else {
+        const interpretation = (outputs.interpretation = await runStage(stages.interpret, {
+          target,
+          workspace,
+          impact,
+          ui,
+          api,
+          findings,
+        }));
+        recorder.setRiskLevel(interpretation.riskLevel);
+        recorder.setFindingSummary(summarizeFindings(findings, interpretation));
+      }
       outcome = { status: 'success' };
     }
   } catch (error) {
@@ -237,7 +302,7 @@ export async function runPipeline(
   }
 
   try {
-    await recorder.timer.measure('report', () =>
+    await measured('report', () =>
       withTimeout(
         clock,
         deps.reportTimeoutMs ?? DEFAULT_REPORT_TIMEOUT_MS,
@@ -258,8 +323,45 @@ export async function runPipeline(
   }
 
   const record = recorder.finish(outcome);
+  const result: RunResult = { record, ...outputs };
+  await writeResult(deps.fs, paths.resultJson, result, logger);
   const runJsonPath = await store.writeRunRecord(record);
   await store.appendResult(record);
   logger.info('run finished', { status: record.status, durationMs: record.durationMs });
-  return { result: { record, ...outputs }, runJsonPath };
+  events.emit({
+    type: 'run-finished',
+    status: record.status,
+    durationMs: record.durationMs,
+    ...(record.status === 'failed'
+      ? {
+          failure: {
+            code: record.failure.code,
+            ...(record.failure.stage === undefined ? {} : { stage: record.failure.stage }),
+          },
+        }
+      : {}),
+  });
+  await events.flush();
+  return { result, runJsonPath };
+}
+
+/**
+ * Writes `result.json` (the run's full output, for the dev panel) through a temporary file, so a
+ * reader never sees half of it. Best effort: `run.json` remains the run's record, so a failure is
+ * logged, not thrown.
+ */
+async function writeResult(
+  fs: FileSystem,
+  file: string,
+  result: RunResult,
+  logger: Logger,
+): Promise<void> {
+  const temporary = `${file}.tmp`;
+  try {
+    await fs.mkdir(path.dirname(file));
+    await fs.writeFile(temporary, `${JSON.stringify(result)}\n`);
+    await fs.rename(temporary, file);
+  } catch (error) {
+    logger.error('result.json could not be written', { file, err: error });
+  }
 }

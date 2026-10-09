@@ -14,6 +14,13 @@ export interface ExecOptions {
   readonly timeoutMs: number;
   /** Aborting kills the process tree and rejects with the abort error. */
   readonly signal: AbortSignal;
+  /**
+   * Signal sent first on timeout or abort (default `SIGTERM`); e.g. `SIGINT` lets a `bdiff` child
+   * clean up as on Ctrl+C.
+   */
+  readonly stopSignal?: 'SIGTERM' | 'SIGINT';
+  /** Time the process tree gets to exit after the stop signal before `SIGKILL` (default 2 s). */
+  readonly killGraceMs?: number;
 }
 
 /** Outcome of a command that ran to completion. A non-zero exit code is not an error. */

@@ -2,6 +2,7 @@ import type { Clock } from '../adapters/clock.js';
 import type { Logger } from '../adapters/logger.js';
 import type { Side, StageName } from '../domain/stage.js';
 import type { Target } from '../domain/target.js';
+import type { StageProgressEvent } from '../events/run-event.js';
 import type { ArtifactPaths } from '../metrics/artifact-paths.js';
 import type { RunId } from '../metrics/run-id.js';
 import type { LlmUsage, RunCounts, TokenUsage } from '../metrics/run-record.js';
@@ -52,4 +53,9 @@ export interface StageContext {
   addCounts(counts: Partial<RunCounts>): void;
   /** Records how long the containers of one side ran, in wall-clock seconds. */
   setComputeSeconds(side: Side, seconds: number): void;
+  /**
+   * Reports live progress (a page captured, an environment side ready) to the run's
+   * `events.jsonl`. Never throws; a stage need not report anything.
+   */
+  progress(event: StageProgressEvent): void;
 }

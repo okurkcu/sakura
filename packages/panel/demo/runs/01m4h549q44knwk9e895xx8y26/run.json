@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "runId": "01m4h549q44knwk9e895xx8y26",
+  "toolVersion": "a1600304860bc2617b554c74ea606836258fc0ed-dirty",
+  "target": {
+    "repoUrl": "/demo/fixture-repo",
+    "baseRef": "main",
+    "headRef": "pr/refactor-no-change"
+  },
+  "startedAt": "2026-10-09T20:19:31.684Z",
+  "finishedAt": "2026-10-09T20:21:01.085Z",
+  "durationMs": 89401,
+  "stageTimings": [
+    {
+      "stage": "workspace",
+      "durationMs": 171,
+      "outcome": "success"
+    },
+    {
+      "stage": "impact",
+      "durationMs": 10,
+      "outcome": "success"
+    },
+    {
+      "stage": "recipe",
+      "durationMs": 2,
+      "outcome": "success"
+    },
+    {
+      "stage": "environment",
+      "durationMs": 80671,
+      "outcome": "success"
+    },
+    {
+      "stage": "probe-ui",
+      "durationMs": 7256,
+      "outcome": "success"
+    },
+    {
+      "stage": "probe-api",
+      "durationMs": 26,
+      "outcome": "success"
+    },
+    {
+      "stage": "diff",
+      "durationMs": 224,
+      "outcome": "success"
+    },
+    {
+      "stage": "interpret",
+      "durationMs": 0,
+      "outcome": "success"
+    },
+    {
+      "stage": "report",
+      "durationMs": 1,
+      "outcome": "success"
+    }
+  ],
+  "computeSeconds": {
+    "base": 87.8,
+    "head": 87.9
+  },
+  "llmUsage": [],
+  "totals": {
+    "llmCalls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWrite5mTokens": 0,
+    "cacheWrite1hTokens": 0,
+    "llmCostUsd": 0,
+    "computeSeconds": 175.7
+  },
+  "counts": {
+    "routesProbed": 2,
+    "endpointsProbed": 1,
+    "rawDiffs": 3,
+    "noiseDiffs": 3,
+    "findings": 0
+  },
+  "apiRequests": [
+    {
+      "key": "GET /api/orders/latest",
+      "source": "route",
+      "method": "GET",
+      "path": "/api/orders/latest",
+      "headers": {},
+      "endpoint": "GET /api/orders/latest"
+    }
+  ],
+  "riskLevel": "low",
+  "setupAttempts": [],
+  "dataset": {
+    "id": "refactor-no-change",
+    "tags": {
+      "difficulty": "easy",
+      "prType": "refactor",
+      "author": "human"
+    }
+  },
+  "findingSummary": {
+    "info": 0,
+    "warning": 0,
+    "breaking": 0,
+    "unexpected": 0
+  },
+  "llmMode": "fake",
+  "status": "success"
+}

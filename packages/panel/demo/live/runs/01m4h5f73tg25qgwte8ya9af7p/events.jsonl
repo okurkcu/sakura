@@ -1,0 +1,59 @@
+{"type":"run-started","runId":"01m4h5f73tg25qgwte8ya9af7p","target":{"repoUrl":"/demo/fixture-repo","baseRef":"main","headRef":"pr/ui-change"},"toolVersion":"a1600304860bc2617b554c74ea606836258fc0ed-dirty","llmMode":"fake","pid":89246,"at":"2026-10-09T20:25:29.468Z"}
+{"type":"log","level":"info","message":"run started","at":"2026-10-09T20:25:29.468Z"}
+{"type":"log","level":"info","message":"stage started","stage":"workspace","at":"2026-10-09T20:25:29.468Z"}
+{"type":"stage-started","stage":"workspace","at":"2026-10-09T20:25:29.469Z"}
+{"type":"log","level":"info","message":"repo cache hit","stage":"workspace","at":"2026-10-09T20:25:29.500Z"}
+{"type":"log","level":"info","message":"workspace ready","stage":"workspace","at":"2026-10-09T20:25:29.562Z"}
+{"type":"stage-finished","stage":"workspace","durationMs":93,"status":"success","at":"2026-10-09T20:25:29.562Z"}
+{"type":"log","level":"info","message":"stage finished","stage":"workspace","at":"2026-10-09T20:25:29.562Z"}
+{"type":"log","level":"info","message":"stage started","stage":"impact","at":"2026-10-09T20:25:29.562Z"}
+{"type":"stage-started","stage":"impact","at":"2026-10-09T20:25:29.562Z"}
+{"type":"log","level":"info","message":"impact planned","stage":"impact","at":"2026-10-09T20:25:29.638Z"}
+{"type":"stage-finished","stage":"impact","durationMs":77,"status":"success","at":"2026-10-09T20:25:29.638Z"}
+{"type":"log","level":"info","message":"stage finished","stage":"impact","at":"2026-10-09T20:25:29.638Z"}
+{"type":"log","level":"info","message":"stage started","stage":"recipe","at":"2026-10-09T20:25:29.639Z"}
+{"type":"stage-started","stage":"recipe","at":"2026-10-09T20:25:29.639Z"}
+{"type":"log","level":"info","message":"recipe ready","stage":"recipe","at":"2026-10-09T20:25:29.642Z"}
+{"type":"stage-finished","stage":"recipe","durationMs":3,"status":"success","at":"2026-10-09T20:25:29.642Z"}
+{"type":"log","level":"info","message":"stage finished","stage":"recipe","at":"2026-10-09T20:25:29.642Z"}
+{"type":"log","level":"info","message":"stage started","stage":"environment","at":"2026-10-09T20:25:29.642Z"}
+{"type":"stage-started","stage":"environment","at":"2026-10-09T20:25:29.642Z"}
+{"type":"log","level":"info","message":"containers started; installing and building","stage":"environment","at":"2026-10-09T20:25:30.114Z"}
+{"type":"environment-side","side":"base","status":"started","at":"2026-10-09T20:25:30.114Z"}
+{"type":"environment-side","side":"head","status":"started","at":"2026-10-09T20:25:30.114Z"}
+{"type":"environment-side","side":"head","status":"ready","at":"2026-10-09T20:26:39.008Z"}
+{"type":"environment-side","side":"base","status":"ready","at":"2026-10-09T20:26:41.127Z"}
+{"type":"log","level":"info","message":"environment ready","stage":"environment","at":"2026-10-09T20:26:41.230Z"}
+{"type":"stage-finished","stage":"environment","durationMs":71588,"status":"success","at":"2026-10-09T20:26:41.230Z"}
+{"type":"log","level":"info","message":"stage finished","stage":"environment","at":"2026-10-09T20:26:41.230Z"}
+{"type":"log","level":"info","message":"stage started","stage":"probe-ui","at":"2026-10-09T20:26:41.230Z"}
+{"type":"stage-started","stage":"probe-ui","at":"2026-10-09T20:26:41.230Z"}
+{"type":"log","level":"info","message":"page captured","stage":"probe-ui","at":"2026-10-09T20:26:42.637Z"}
+{"type":"capture","probeRun":"baseA","route":"/login","status":"ok","ms":1265.455582999988,"total":1,"at":"2026-10-09T20:26:42.637Z"}
+{"type":"log","level":"info","message":"page captured","stage":"probe-ui","at":"2026-10-09T20:26:43.785Z"}
+{"type":"capture","probeRun":"baseB","route":"/login","status":"ok","ms":1147.7886670000007,"total":1,"at":"2026-10-09T20:26:43.785Z"}
+{"type":"log","level":"info","message":"page captured","stage":"probe-ui","at":"2026-10-09T20:26:44.936Z"}
+{"type":"capture","probeRun":"head","route":"/login","status":"ok","ms":1150.1009170000034,"total":1,"at":"2026-10-09T20:26:44.936Z"}
+{"type":"stage-finished","stage":"probe-ui","durationMs":3718,"status":"success","at":"2026-10-09T20:26:44.948Z"}
+{"type":"log","level":"info","message":"stage finished","stage":"probe-ui","at":"2026-10-09T20:26:44.948Z"}
+{"type":"log","level":"info","message":"stage started","stage":"probe-api","at":"2026-10-09T20:26:44.948Z"}
+{"type":"stage-started","stage":"probe-api","at":"2026-10-09T20:26:44.948Z"}
+{"type":"log","level":"info","message":"request set built","stage":"probe-api","at":"2026-10-09T20:26:44.948Z"}
+{"type":"stage-finished","stage":"probe-api","durationMs":0,"status":"success","at":"2026-10-09T20:26:44.948Z"}
+{"type":"log","level":"info","message":"stage finished","stage":"probe-api","at":"2026-10-09T20:26:44.948Z"}
+{"type":"log","level":"info","message":"stage started","stage":"diff","at":"2026-10-09T20:26:44.949Z"}
+{"type":"stage-started","stage":"diff","at":"2026-10-09T20:26:44.949Z"}
+{"type":"log","level":"info","message":"findings","stage":"diff","at":"2026-10-09T20:26:45.059Z"}
+{"type":"stage-finished","stage":"diff","durationMs":111,"status":"success","at":"2026-10-09T20:26:45.059Z"}
+{"type":"log","level":"info","message":"stage finished","stage":"diff","at":"2026-10-09T20:26:45.059Z"}
+{"type":"log","level":"info","message":"stage started","stage":"interpret","at":"2026-10-09T20:26:45.059Z"}
+{"type":"stage-started","stage":"interpret","at":"2026-10-09T20:26:45.059Z"}
+{"type":"log","level":"info","message":"interpretation","stage":"interpret","at":"2026-10-09T20:26:45.072Z"}
+{"type":"stage-finished","stage":"interpret","durationMs":13,"status":"success","at":"2026-10-09T20:26:45.072Z"}
+{"type":"log","level":"info","message":"stage finished","stage":"interpret","at":"2026-10-09T20:26:45.072Z"}
+{"type":"log","level":"info","message":"docker compose project removed","stage":"environment","at":"2026-10-09T20:26:46.069Z"}
+{"type":"stage-started","stage":"report","at":"2026-10-09T20:26:46.124Z"}
+{"type":"log","level":"info","message":"report written","stage":"report","at":"2026-10-09T20:26:46.127Z"}
+{"type":"stage-finished","stage":"report","durationMs":3,"status":"success","at":"2026-10-09T20:26:46.127Z"}
+{"type":"log","level":"info","message":"run finished","at":"2026-10-09T20:26:46.128Z"}
+{"type":"run-finished","status":"success","durationMs":76661,"at":"2026-10-09T20:26:46.128Z"}

@@ -263,6 +263,18 @@ describe('evaluateCriteria', () => {
     ).toBe('fail');
   });
 
+  it('counts hidden changes only from runs with the real model', () => {
+    const fake = { ...record({ unexpected: 1, findings: 1 }), llmMode: 'fake' as const };
+    const off = { ...record({ findings: 1 }), llmMode: 'off' as const };
+
+    expect(evaluateCriteria([fake, off])[3]).toMatchObject({
+      id: 'hidden-changes',
+      verdict: 'n/a',
+      measured: 'no runs with the LLM on',
+    });
+    expect(evaluateCriteria([fake, record({})])[3]).toMatchObject({ verdict: 'fail' });
+  });
+
   it('cannot judge without the runs a criterion needs', () => {
     expect(evaluateCriteria([]).map((criterion) => criterion.verdict)).toEqual([
       'n/a',

@@ -24,6 +24,20 @@ export default defineConfig({
       packageProject('cli'),
       {
         extends: true,
+        // The web UI's JSX is Preact's.
+        oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },
+        test: {
+          name: 'panel',
+          include: [
+            'packages/panel/src/**/*.test.ts',
+            'packages/panel/web/**/*.test.{ts,tsx}',
+            'packages/panel/tools/*.test.ts',
+          ],
+          exclude: integrationTests,
+        },
+      },
+      {
+        extends: true,
         test: {
           name: 'fixtures',
           include: ['fixtures/*.test.ts'],
@@ -59,7 +73,7 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      include: ['packages/*/src/**/*.ts'],
+      include: ['packages/*/src/**/*.ts', 'packages/panel/web/**/*.{ts,tsx}'],
       exclude: ['**/*.test.ts'],
     },
   },

@@ -6,6 +6,7 @@ import { SetupAttemptSchema } from '../domain/setup-repair.js';
 import { StageNameSchema } from '../domain/stage.js';
 import { TargetSchema } from '../domain/target.js';
 import { FailureRecordSchema } from '../errors/failure-record.js';
+import { LlmModeSchema } from '../llm/llm-mode.js';
 
 const count = z.number().int().nonnegative();
 const nonNegative = z.number().nonnegative();
@@ -33,11 +34,14 @@ export const LlmUsageSchema = TokenUsageSchema.extend({
 });
 export type LlmUsage = z.infer<typeof LlmUsageSchema>;
 
-/** How long one execution of a stage took. A stage can run more than once (repair loop). */
+/**
+ * How long one execution of a stage took. A stage can run more than once (repair loop). A stage
+ * the run's LLM mode left out (`--llm off`) has one `skipped` timing of 0 ms.
+ */
 export const StageTimingSchema = z.strictObject({
   stage: StageNameSchema,
   durationMs: nonNegative,
-  outcome: z.enum(['success', 'failed']),
+  outcome: z.enum(['success', 'failed', 'skipped']),
 });
 export type StageTiming = z.infer<typeof StageTimingSchema>;
 
@@ -121,6 +125,11 @@ const runRecordBase = z.strictObject({
    * the diff (and interpret) stage ran. Defaults to zeros for old records.
    */
   findingSummary: FindingSummarySchema.default({ info: 0, warning: 0, breaking: 0, unexpected: 0 }),
+  /**
+   * How the run used the LLM (`on`, `off`, `fake`). Defaults to `on`, the only mode before it was
+   * recorded.
+   */
+  llmMode: LlmModeSchema.default('on'),
 });
 
 /**

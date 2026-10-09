@@ -13,7 +13,37 @@ describe('parseRunConfig', () => {
       timeoutMs: 20 * 60_000,
       budgetUsd: 1,
       logLevel: 'info',
+      llm: { mode: 'off', defaulted: true },
     });
+  });
+
+  it.each<[string, Record<string, string>, Record<string, string>, unknown]>([
+    ['on with an API key', {}, { ANTHROPIC_API_KEY: 'sk-test' }, { mode: 'on', defaulted: false }],
+    ['off without one', {}, { ANTHROPIC_API_KEY: ' ' }, { mode: 'off', defaulted: true }],
+    [
+      '--llm over the key',
+      { llm: 'fake' },
+      { ANTHROPIC_API_KEY: 'sk-test' },
+      { mode: 'fake', defaulted: false },
+    ],
+    [
+      'BDIFF_LLM',
+      {},
+      { BDIFF_LLM: 'off', ANTHROPIC_API_KEY: 'sk-test' },
+      { mode: 'off', defaulted: false },
+    ],
+    ['--llm over BDIFF_LLM', { llm: 'on' }, { BDIFF_LLM: 'off' }, { mode: 'on', defaulted: false }],
+  ])('chooses the LLM mode: %s', (_name, flags, env, llm) => {
+    expect(parseRunConfig({ ...required, ...flags }, env).llm).toEqual(llm);
+  });
+
+  it('rejects an unknown LLM mode, for a PR URL too', () => {
+    expect(() => parseRunConfig({ ...required, llm: 'maybe' }, {})).toThrow(
+      '--llm must be one of on, off, fake',
+    );
+    expect(() =>
+      parseRunConfig({ prUrl: 'https://github.com/a/b/pull/1', llm: 'maybe' }, {}),
+    ).toThrow('--llm must be one of on, off, fake');
   });
 
   it('reads environment variables', () => {

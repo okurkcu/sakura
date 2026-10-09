@@ -27,6 +27,8 @@ export interface HealthOptions {
   readonly intervalMs: number;
   /** Timeout of each health request. */
   readonly requestTimeoutMs: number;
+  /** Called once per target when it first answers, e.g. to report progress. */
+  readonly onHealthy?: (side: Side) => void;
 }
 
 /**
@@ -52,6 +54,7 @@ export async function waitUntilHealthy(
       }
       if (await answers(http, target.url, options)) {
         pending.delete(target);
+        options.onHealthy?.(target.side);
       }
     }
     if (pending.size === 0) {

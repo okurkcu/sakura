@@ -1,0 +1,16 @@
+{"type":"run-started","runId":"01m4h5710y4384j10t9ts92bz5","target":{"repoUrl":"/demo/fixture-repo","baseRef":"main","headRef":"pr/docs-only"},"toolVersion":"a1600304860bc2617b554c74ea606836258fc0ed-dirty","llmMode":"fake","pid":76903,"at":"2026-10-09T20:21:01.086Z"}
+{"type":"log","level":"info","message":"run started","at":"2026-10-09T20:21:01.086Z"}
+{"type":"log","level":"info","message":"stage started","at":"2026-10-09T20:21:01.086Z"}
+{"type":"stage-started","stage":"workspace","at":"2026-10-09T20:21:01.086Z"}
+{"type":"log","level":"info","message":"repo cache hit","stage":"workspace","at":"2026-10-09T20:21:01.120Z"}
+{"type":"log","level":"info","message":"workspace ready","stage":"workspace","at":"2026-10-09T20:21:01.182Z"}
+{"type":"stage-finished","stage":"workspace","durationMs":95,"status":"success","at":"2026-10-09T20:21:01.182Z"}
+{"type":"log","level":"info","message":"stage finished","at":"2026-10-09T20:21:01.182Z"}
+{"type":"log","level":"info","message":"stage started","at":"2026-10-09T20:21:01.182Z"}
+{"type":"stage-started","stage":"impact","at":"2026-10-09T20:21:01.182Z"}
+{"type":"log","level":"info","message":"nothing to probe; skipping","stage":"impact","at":"2026-10-09T20:21:01.182Z"}
+{"type":"stage-finished","stage":"impact","durationMs":0,"status":"success","at":"2026-10-09T20:21:01.182Z"}
+{"type":"log","level":"info","message":"stage finished","at":"2026-10-09T20:21:01.182Z"}
+{"type":"stage-started","stage":"report","at":"2026-10-09T20:21:01.219Z"}
+{"type":"log","level":"info","message":"report written","stage":"report","at":"2026-10-09T20:21:01.220Z"}
+{"type":"stage-finished","stage":"report","durationMs":1,"status":"success","at":"2026-10-09T20:21:01.220Z"}

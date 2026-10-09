@@ -4,6 +4,7 @@ import { createTestLogger } from './test-logger.js';
 import type { TestLogger } from './test-logger.js';
 import type { Clock } from '../adapters/clock.js';
 import { BdiffError } from '../errors/bdiff-error.js';
+import type { StageProgressEvent } from '../events/run-event.js';
 import { createArtifactPaths } from '../metrics/artifact-paths.js';
 import type { RunId } from '../metrics/run-id.js';
 import type { Budget, CleanupHook, StageContext } from '../pipeline/stage.js';
@@ -22,6 +23,8 @@ export interface TestStageContextOptions {
 export interface TestStageContext {
   readonly ctx: StageContext;
   readonly logger: TestLogger;
+  /** Progress events the stage reported, in order. */
+  readonly progress: readonly StageProgressEvent[];
   /** Registered cleanup hooks, in registration order. */
   readonly cleanups: readonly { readonly name: string; readonly hook: CleanupHook }[];
   /** Runs the registered hooks in reverse order, like the pipeline; throws `CLEANUP_FAILED` if any failed. */
@@ -35,6 +38,7 @@ export function createTestStageContext(options: TestStageContextOptions = {}): T
   const { recorder } = createTestRunRecorder();
   const logger = createTestLogger();
   const cleanups: { name: string; hook: CleanupHook }[] = [];
+  const progress: StageProgressEvent[] = [];
   const limitUsd = options.budgetUsd ?? 1;
   const budget: Budget = {
     limitUsd,
@@ -59,10 +63,14 @@ export function createTestStageContext(options: TestStageContextOptions = {}): T
     setComputeSeconds: (side, seconds) => {
       recorder.setComputeSeconds(side, seconds);
     },
+    progress: (event) => {
+      progress.push(event);
+    },
   };
   return {
     ctx,
     logger,
+    progress,
     cleanups,
     runCleanups: async () => {
       const signal = new AbortController().signal;

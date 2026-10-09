@@ -1,0 +1,84 @@
+name: bdiff-01m4h51h0hw5wkkbqa43gjwrjk
+services:
+  app-base:
+    image: node:22
+    working_dir: /
+    command:
+      - sh
+      - -c
+      - |
+        set -u
+        cd /app || exit 100
+        echo '@@bdiff phase toolchain'
+        corepack --version >/dev/null 2>&1 || npm install --global corepack >/dev/null 2>&1 || exit 100
+        corepack enable || exit 100
+        pnpm config set --location=global dangerously-allow-all-builds true >/dev/null 2>&1 || true
+        echo '@@bdiff phase install'
+        pnpm install --frozen-lockfile || exit 101
+        cd /app || exit 101
+        echo '@@bdiff phase build'
+        pnpm run build || exit 103
+        echo '@@bdiff phase start'
+        exec pnpm exec next start -p 3000 -H 0.0.0.0
+    environment:
+      TZ: UTC
+      LANG: C.UTF-8
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      CI: "1"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    ports:
+      - 127.0.0.1::3000
+    init: true
+    cpus: 2
+    mem_limit: 4g
+    pids_limit: 4096
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 5s
+    labels:
+      dev.bdiff.run: 01m4h51h0hw5wkkbqa43gjwrjk
+      dev.bdiff.side: base
+  app-head:
+    image: node:22
+    working_dir: /
+    command:
+      - sh
+      - -c
+      - |
+        set -u
+        cd /app || exit 100
+        echo '@@bdiff phase toolchain'
+        corepack --version >/dev/null 2>&1 || npm install --global corepack >/dev/null 2>&1 || exit 100
+        corepack enable || exit 100
+        pnpm config set --location=global dangerously-allow-all-builds true >/dev/null 2>&1 || true
+        echo '@@bdiff phase install'
+        pnpm install --frozen-lockfile || exit 101
+        cd /app || exit 101
+        echo '@@bdiff phase build'
+        pnpm run build || exit 103
+        echo '@@bdiff phase start'
+        exec pnpm exec next start -p 3000 -H 0.0.0.0
+    environment:
+      TZ: UTC
+      LANG: C.UTF-8
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      CI: "1"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    ports:
+      - 127.0.0.1::3000
+    init: true
+    cpus: 2
+    mem_limit: 4g
+    pids_limit: 4096
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 5s
+    labels:
+      dev.bdiff.run: 01m4h51h0hw5wkkbqa43gjwrjk
+      dev.bdiff.side: head

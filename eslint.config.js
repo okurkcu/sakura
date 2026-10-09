@@ -9,7 +9,8 @@ import { configs as tseslintConfigs } from 'typescript-eslint';
 
 /**
  * Package boundaries. `core` is the engine and must stay independent of its consumers;
- * `report` may only depend on `core`. `cli` is the composition root and may import anything.
+ * `report` and `panel` may only depend on `core`. `cli` is the composition root and may import
+ * anything.
  * Enforced twice: by package name (clear message) and by resolved path (catches relative imports).
  */
 const boundaryMessage = (pkg, forbidden) =>
@@ -89,6 +90,10 @@ export default defineConfig(
               group: ['@bdiff/report', '@bdiff/report/*'],
               message: boundaryMessage('@bdiff/core', '@bdiff/report'),
             },
+            {
+              group: ['@bdiff/panel', '@bdiff/panel/*'],
+              message: boundaryMessage('@bdiff/core', '@bdiff/panel'),
+            },
           ],
         },
       ],
@@ -98,8 +103,8 @@ export default defineConfig(
           zones: [
             {
               target: './packages/core',
-              from: ['./packages/cli', './packages/report'],
-              message: boundaryMessage('@bdiff/core', '@bdiff/cli or @bdiff/report'),
+              from: ['./packages/cli', './packages/report', './packages/panel'],
+              message: boundaryMessage('@bdiff/core', '@bdiff/cli, @bdiff/report or @bdiff/panel'),
             },
           ],
         },
@@ -118,6 +123,10 @@ export default defineConfig(
               group: ['@bdiff/cli', '@bdiff/cli/*'],
               message: boundaryMessage('@bdiff/report', '@bdiff/cli'),
             },
+            {
+              group: ['@bdiff/panel', '@bdiff/panel/*'],
+              message: boundaryMessage('@bdiff/report', '@bdiff/panel'),
+            },
           ],
         },
       ],
@@ -127,13 +136,52 @@ export default defineConfig(
           zones: [
             {
               target: './packages/report',
-              from: './packages/cli',
-              message: boundaryMessage('@bdiff/report', '@bdiff/cli'),
+              from: ['./packages/cli', './packages/panel'],
+              message: boundaryMessage('@bdiff/report', '@bdiff/cli or @bdiff/panel'),
             },
           ],
         },
       ],
     },
+  },
+
+  {
+    files: ['packages/panel/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@bdiff/cli', '@bdiff/cli/*'],
+              message: boundaryMessage('@bdiff/panel', '@bdiff/cli'),
+            },
+            {
+              group: ['@bdiff/report', '@bdiff/report/*'],
+              message: boundaryMessage('@bdiff/panel', '@bdiff/report'),
+            },
+          ],
+        },
+      ],
+      'import-x/no-restricted-paths': [
+        'error',
+        {
+          zones: [
+            {
+              target: './packages/panel',
+              from: ['./packages/cli', './packages/report'],
+              message: boundaryMessage('@bdiff/panel', '@bdiff/cli or @bdiff/report'),
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    // The panel's web UI runs in the browser.
+    files: ['packages/panel/web/**/*.{ts,tsx}'],
+    languageOptions: { globals: globals.browser },
   },
 
   {

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "runId": "01m4h5f73tg25qgwte8ya9af7p",
+  "toolVersion": "a1600304860bc2617b554c74ea606836258fc0ed-dirty",
+  "target": {
+    "repoUrl": "/demo/fixture-repo",
+    "baseRef": "main",
+    "headRef": "pr/ui-change"
+  },
+  "startedAt": "2026-10-09T20:25:29.467Z",
+  "finishedAt": "2026-10-09T20:26:46.127Z",
+  "durationMs": 76661,
+  "stageTimings": [
+    {
+      "stage": "workspace",
+      "durationMs": 93,
+      "outcome": "success"
+    },
+    {
+      "stage": "impact",
+      "durationMs": 77,
+      "outcome": "success"
+    },
+    {
+      "stage": "recipe",
+      "durationMs": 3,
+      "outcome": "success"
+    },
+    {
+      "stage": "environment",
+      "durationMs": 71588,
+      "outcome": "success"
+    },
+    {
+      "stage": "probe-ui",
+      "durationMs": 3718,
+      "outcome": "success"
+    },
+    {
+      "stage": "probe-api",
+      "durationMs": 0,
+      "outcome": "success"
+    },
+    {
+      "stage": "diff",
+      "durationMs": 111,
+      "outcome": "success"
+    },
+    {
+      "stage": "interpret",
+      "durationMs": 13,
+      "outcome": "success"
+    },
+    {
+      "stage": "report",
+      "durationMs": 2,
+      "outcome": "success"
+    }
+  ],
+  "computeSeconds": {
+    "base": 75.2,
+    "head": 75.1
+  },
+  "llmUsage": [],
+  "totals": {
+    "llmCalls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWrite5mTokens": 0,
+    "cacheWrite1hTokens": 0,
+    "llmCostUsd": 0,
+    "computeSeconds": 150.3
+  },
+  "counts": {
+    "routesProbed": 1,
+    "endpointsProbed": 0,
+    "rawDiffs": 4,
+    "noiseDiffs": 0,
+    "findings": 2
+  },
+  "apiRequests": [],
+  "riskLevel": "low",
+  "setupAttempts": [],
+  "dataset": null,
+  "findingSummary": {
+    "info": 2,
+    "warning": 0,
+    "breaking": 0,
+    "unexpected": 0
+  },
+  "llmMode": "fake",
+  "status": "success"
+}

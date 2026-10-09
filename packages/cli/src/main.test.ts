@@ -145,7 +145,12 @@ describe('bdiff binary', () => {
     expect(run.stdout()).toContain('failed at recipe (SETUP_UNSUPPORTED)');
     expect(await readdir(out)).toEqual(['results.csv', 'runs']);
     const [runId] = await readdir(path.join(out, 'runs'));
-    expect(await readdir(path.join(out, 'runs', runId ?? ''))).toEqual(['report', 'run.json']);
+    expect(await readdir(path.join(out, 'runs', runId ?? ''))).toEqual([
+      'events.jsonl',
+      'report',
+      'result.json',
+      'run.json',
+    ]);
     expect(
       await readFile(path.join(out, 'runs', runId ?? '', 'report', 'index.html'), 'utf8'),
     ).toContain('Failed at recipe: SETUP_UNSUPPORTED');

@@ -27,6 +27,7 @@ import type { Target } from '../domain/target.js';
 import { TargetSchema } from '../domain/target.js';
 import { BdiffError } from '../errors/bdiff-error.js';
 import { toFailureRecord } from '../errors/failure-record.js';
+import type { LlmMode } from '../llm/llm-mode.js';
 
 /** How a run ended. */
 export type RunOutcome =
@@ -49,6 +50,8 @@ export interface RunRecorderOptions {
   readonly costs: CostCalculator;
   /** The dataset entry of a batch run. */
   readonly dataset?: RunDataset;
+  /** How the run uses the LLM; defaults to `on`. */
+  readonly llmMode?: LlmMode;
 }
 
 /**
@@ -143,6 +146,7 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
       setupAttempts: [...setupAttempts],
       dataset,
       findingSummary: { ...findingSummary },
+      llmMode: options.llmMode ?? 'on',
     };
     switch (outcome.status) {
       case 'success':

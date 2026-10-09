@@ -112,6 +112,7 @@ export function createSetupCheck(deps: SetupCheckDeps): SetupCheck {
       },
       addCounts: () => undefined,
       setComputeSeconds: () => undefined,
+      progress: () => undefined,
     };
     try {
       const workspace = await workspaceStage.run(target, ctx);

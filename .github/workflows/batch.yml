@@ -90,7 +90,13 @@ jobs:
       # sandbox needs. bdiff never turns the sandbox off, so allow them on this throwaway runner.
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      - run: docker pull --quiet node:22
+      # Docker Hub limits anonymous pulls per IP, which shared runners hit. Pull the image the
+      # fixture runs on from Google's public Docker Hub mirror and tag it as Docker Hub's, so compose
+      # finds it locally and never asks Docker Hub.
+      - name: Pull node:22 through the mirror.gcr.io Docker Hub mirror
+        run: |
+          docker pull --quiet mirror.gcr.io/library/node:22
+          docker tag mirror.gcr.io/library/node:22 node:22
 
       - name: Prepare the dataset
         id: dataset

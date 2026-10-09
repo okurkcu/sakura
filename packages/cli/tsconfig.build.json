@@ -14,6 +14,9 @@
     },
     {
       "path": "../report/tsconfig.build.json"
+    },
+    {
+      "path": "../panel/tsconfig.build.json"
     }
   ],
   "include": ["src"]

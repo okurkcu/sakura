@@ -1,5 +1,5 @@
-import { BdiffError, TargetSchema } from '@bdiff/core';
-import type { LogLevel, Target } from '@bdiff/core';
+import { BdiffError, LlmModeSchema, resolveLlmMode, TargetSchema } from '@bdiff/core';
+import type { LogLevel, ResolvedLlmMode, Target } from '@bdiff/core';
 import { z } from 'zod';
 
 import type { BatchMode, Shard } from './batch.js';
@@ -25,6 +25,7 @@ export const RUN_ENV = {
   timeoutMinutes: 'BDIFF_TIMEOUT_MIN',
   budgetUsd: 'BDIFF_BUDGET_USD',
   logLevel: 'BDIFF_LOG_LEVEL',
+  llmMode: 'BDIFF_LLM',
 } as const;
 
 /** `bdiff run` options as commander parsed them: raw strings, all optional. */
@@ -37,6 +38,8 @@ export interface RunFlags {
   readonly timeout?: string;
   readonly budget?: string;
   readonly logLevel?: string;
+  /** `--llm on|off|fake`. */
+  readonly llm?: string;
   /** The positional `<pr-url>`. */
   readonly prUrl?: string;
 }
@@ -57,6 +60,8 @@ export interface RunOptions {
   readonly timeoutMs: number;
   readonly budgetUsd: number;
   readonly logLevel: LogLevel;
+  /** How runs use the LLM: `--llm`, else `on` with `ANTHROPIC_API_KEY`, else `off`. */
+  readonly llm: ResolvedLlmMode;
 }
 
 const decimal = (label: string) =>
@@ -77,6 +82,11 @@ const RawCommonSchema = z.object({
     'the budget must be at most 100 USD',
   ),
   logLevel: z.enum(LOG_LEVELS, { error: `the log level must be one of ${LOG_LEVELS.join(', ')}` }),
+  llm: z
+    .enum(LlmModeSchema.options, {
+      error: `--llm must be one of ${LlmModeSchema.options.join(', ')}`,
+    })
+    .optional(),
 });
 
 const RawRunConfigSchema = z
@@ -99,6 +109,7 @@ export interface BatchFlags {
   readonly timeout?: string;
   readonly budget?: string;
   readonly logLevel?: string;
+  readonly llm?: string;
   readonly concurrency?: string;
   readonly resume?: boolean;
   readonly force?: boolean;
@@ -115,6 +126,7 @@ export interface BatchConfig {
   /** Per run. */
   readonly budgetUsd: number;
   readonly logLevel: LogLevel;
+  readonly llm: ResolvedLlmMode;
   readonly concurrency: number;
   readonly mode: BatchMode;
   readonly only: readonly TagFilter[];
@@ -202,6 +214,79 @@ export function parseBatchConfig(
   };
 }
 
+/** `bdiff ui` options as commander parsed them. */
+export interface UiFlags {
+  readonly port?: string;
+  readonly workspace?: string;
+  readonly demo?: boolean;
+  /** `false` with `--no-open`. */
+  readonly open?: boolean;
+  readonly llm?: string;
+  readonly logLevel?: string;
+}
+
+/** A validated `bdiff ui` configuration. */
+export interface UiConfig {
+  readonly port: number;
+  /** The workspace to show (`--workspace`, else `BDIFF_OUT`, else `.bdiff`). */
+  readonly workspace: string;
+  readonly demo: boolean;
+  readonly open: boolean;
+  /** The LLM mode of suite runs started from the panel, and shown in its sidebar. */
+  readonly llm: ResolvedLlmMode;
+  readonly logLevel: LogLevel;
+}
+
+/** Default port of `bdiff ui`. */
+export const UI_DEFAULT_PORT = 4317;
+
+const RawUiSchema = z.object({
+  port: z
+    .string()
+    .trim()
+    .regex(/^\d+$/, '--port must be a number')
+    .transform(Number)
+    .refine(
+      (port) => port === 0 || (port >= 1024 && port <= 65_535),
+      '--port must be 0 or 1024–65535',
+    ),
+  workspace: z.string().trim().min(1, 'the workspace must not be empty'),
+  logLevel: z.enum(LOG_LEVELS, { error: `the log level must be one of ${LOG_LEVELS.join(', ')}` }),
+  llm: z
+    .enum(LlmModeSchema.options, {
+      error: `--llm must be one of ${LlmModeSchema.options.join(', ')}`,
+    })
+    .optional(),
+});
+
+/**
+ * Validates `bdiff ui` options over environment variables and defaults.
+ *
+ * @throws BdiffError `INVALID_INPUT` listing every problem.
+ */
+export function parseUiConfig(
+  flags: UiFlags,
+  env: Readonly<Record<string, string | undefined>>,
+): UiConfig {
+  const parsed = RawUiSchema.safeParse({
+    port: flags.port ?? String(UI_DEFAULT_PORT),
+    workspace: flags.workspace ?? env[RUN_ENV.outDir] ?? RUN_DEFAULTS.outDir,
+    logLevel: flags.logLevel ?? env[RUN_ENV.logLevel] ?? 'warn',
+    llm: flags.llm ?? env[RUN_ENV.llmMode],
+  });
+  if (!parsed.success) {
+    throw usageError(parsed.error.issues.map((issue) => issue.message));
+  }
+  return {
+    port: parsed.data.port,
+    workspace: parsed.data.workspace,
+    demo: flags.demo === true,
+    open: flags.open !== false,
+    llm: resolveLlmMode(parsed.data.llm, hasApiKey(env)),
+    logLevel: parsed.data.logLevel,
+  };
+}
+
 /** `bdiff stats` options as commander parsed them. */
 export interface StatsFlags {
   readonly out?: string;
@@ -250,7 +335,7 @@ export function parseStatsConfig(
 
 /** Options every command shares, validated; `undefined` when some are invalid (in `problems`). */
 function parseCommon(
-  flags: Pick<RunFlags, 'out' | 'timeout' | 'budget' | 'logLevel'>,
+  flags: Pick<RunFlags, 'out' | 'timeout' | 'budget' | 'logLevel' | 'llm'>,
   env: Readonly<Record<string, string | undefined>>,
   problems: string[],
 ): RunOptions | undefined {
@@ -259,6 +344,7 @@ function parseCommon(
     timeout: flags.timeout ?? env[RUN_ENV.timeoutMinutes] ?? String(RUN_DEFAULTS.timeoutMinutes),
     budget: flags.budget ?? env[RUN_ENV.budgetUsd] ?? String(RUN_DEFAULTS.budgetUsd),
     logLevel: flags.logLevel ?? env[RUN_ENV.logLevel] ?? RUN_DEFAULTS.logLevel,
+    llm: flags.llm ?? env[RUN_ENV.llmMode],
   });
   if (!parsed.success) {
     problems.push(...parsed.error.issues.map((issue) => issue.message));
@@ -269,6 +355,7 @@ function parseCommon(
     timeoutMs: Math.round(parsed.data.timeout * 60_000),
     budgetUsd: parsed.data.budget,
     logLevel: parsed.data.logLevel,
+    llm: resolveLlmMode(parsed.data.llm, hasApiKey(env)),
   };
 }
 
@@ -293,12 +380,13 @@ export function parseRunConfig(
     timeout: flags.timeout ?? env[RUN_ENV.timeoutMinutes] ?? String(RUN_DEFAULTS.timeoutMinutes),
     budget: flags.budget ?? env[RUN_ENV.budgetUsd] ?? String(RUN_DEFAULTS.budgetUsd),
     logLevel: flags.logLevel ?? env[RUN_ENV.logLevel] ?? RUN_DEFAULTS.logLevel,
+    llm: flags.llm ?? env[RUN_ENV.llmMode],
   };
   const parsed = RawRunConfigSchema.safeParse(raw);
   if (!parsed.success) {
     throw usageError(parsed.error.issues.map((issue) => issue.message));
   }
-  const { repo, base, head, pr, out, timeout, budget, logLevel } = parsed.data;
+  const { repo, base, head, pr, out, timeout, budget, logLevel, llm } = parsed.data;
 
   const target = TargetSchema.safeParse({
     repoUrl: repo,
@@ -315,7 +403,13 @@ export function parseRunConfig(
     timeoutMs: Math.round(timeout * 60_000),
     budgetUsd: budget,
     logLevel,
+    llm: resolveLlmMode(llm, hasApiKey(env)),
   };
+}
+
+/** Whether `ANTHROPIC_API_KEY` is set to something. */
+function hasApiKey(env: Readonly<Record<string, string | undefined>>): boolean {
+  return (env.ANTHROPIC_API_KEY ?? '').trim() !== '';
 }
 
 /** `bdiff run <pr-url>`: the URL, alone, and the shared options. */
