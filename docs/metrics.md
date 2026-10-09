@@ -100,6 +100,27 @@ The first line is the header. Rows are RFC 4180: fields containing a comma, quot
 | `findings_breaking`         | Findings with severity `breaking`.                                                                                               |
 | `findings_unexpected`       | Findings the interpretation flagged as unexpected for the PR's intent.                                                           |
 
+## `stats.json`
+
+Written by `bdiff stats` to the output root. `records` is how many records were counted (the latest per dataset entry, plus every single run). `overall` holds the numbers below for all of them; with `--by <tag>`, `groups.values` holds them per tag value (`(none)` for runs without that tag). `criteria` lists the success criteria (`id`, `description`, `measured`, `verdict`: `pass`, `fail` or `n/a`); see [cli.md](cli.md#bdiff-stats).
+
+| Field                                    | Meaning                                                                                                                            |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `runs`, `succeeded`, `failed`, `skipped` | Run counts by status.                                                                                                              |
+| `skipRate`                               | `skipped / runs`.                                                                                                                  |
+| `setup`                                  | `attempted`: runs that tried to set the app up (recipe, environment or repair ran); `succeeded`: those whose apps started; `rate`. |
+| `repaired`                               | Runs that needed the setup repair loop (`attempted`) and those it repaired (`succeeded`).                                          |
+| `durationMs`                             | Median and p90 (nearest rank) duration of the runs that were not skipped.                                                          |
+| `stageMs`                                | The same per stage, over the runs where the stage ran (all its executions summed).                                                 |
+| `llmCostUsd`                             | LLM cost per run: median, p90 and `total`.                                                                                         |
+| `computeSeconds`                         | Container run time per run, both sides: median, p90 and `total`. There is no compute price, so no dollars.                         |
+| `noiseRatio`                             | `noiseDiffs / rawDiffs` summed over the runs: the share of differences that were noise.                                            |
+| `findingsPerRun`                         | Findings per successful run: median, p90, `mean`.                                                                                  |
+| `breakingOrUnexpected`                   | Successful runs with at least one breaking or unexpected finding, and their share.                                                 |
+| `failureReasons`                         | Failure codes of failed runs with their counts, most frequent first.                                                               |
+
+Every rate and statistic is `null` when the group has no run to compute it from.
+
 ## Pricing: `config/pricing.json`
 
 LLM cost is computed from `config/pricing.json`, never from prices in code. Prices are USD per million tokens, keyed by the model id exactly as sent in API requests. `source` and `retrievedAt` record where and when the prices were checked; re-check them against the [pricing page](https://platform.claude.com/docs/en/about-claude/pricing) when adding a model.

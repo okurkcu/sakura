@@ -2,6 +2,8 @@
 
 ```bash
 pnpm bdiff run --repo <url|path> --base <ref> --head <ref> [options]
+pnpm bdiff batch <dataset.json> [--concurrency 1|2] [--resume | --force] [--only <tag=value>]… [options]
+pnpm bdiff stats [--by difficulty|prType|author] [--out <dir>]
 ```
 
 From a build, the same command is `node packages/cli/dist/main.js run …` (package bin: `bdiff`).
@@ -52,14 +54,54 @@ Other environment variables:
 
 ## Exit codes
 
-| Code  | Meaning                                                                                       |
-| ----- | --------------------------------------------------------------------------------------------- |
-| `0`   | The run succeeded or was skipped (e.g. a docs-only PR).                                       |
-| `1`   | The run failed and was recorded, or it could not be recorded (e.g. unreadable pricing table). |
-| `2`   | Invalid usage; nothing ran and nothing was written.                                           |
-| `130` | Interrupted by SIGINT or SIGTERM; cleanup ran and the run was recorded as `ABORTED`.          |
+| Code | Meaning                                                                                       |
+| ---- | --------------------------------------------------------------------------------------------- |
+| `0`  | The run succeeded or was skipped (e.g. a docs-only PR).                                       |
+| `1`  | The run failed and was recorded, or it could not be recorded (e.g. unreadable pricing table). |
+| `2`  | Invalid usage; nothing ran and nothing was written.                                           |
+
+For `bdiff batch` and `bdiff stats`, see their sections; `2` and `130` mean the same for every command.
+| `130` | Interrupted by SIGINT or SIGTERM; cleanup ran and the run was recorded as `ABORTED`. |
 
 On the first Ctrl+C (or SIGTERM), bdiff aborts the stage in progress, runs every cleanup hook (containers, worktrees, browsers), renders the report and writes the record. A second Ctrl+C exits immediately without waiting for cleanup.
+
+## `bdiff batch`
+
+Runs every pull request of a dataset file, unattended, one at a time (`--concurrency 2` runs two at once; more would compete for Docker resources). `--out`, `--timeout`, `--budget` and `--log-level` work as for `bdiff run`; timeout and budget apply to each run. Each entry is isolated: a run that fails is recorded like any other, and an entry that cannot even be recorded is reported and skipped. Each record carries the entry's id and tags (`dataset` in `run.json`, `dataset_id` in the CSV). At the end, `<out>/report/batch-index.html` lists the latest record of every entry, linked to its report.
+
+The dataset (validated; an invalid one exits with 2 and lists every problem):
+
+```json
+{
+  "entries": [
+    {
+      "id": "shop-42",
+      "repoUrl": "https://github.com/acme/shop.git",
+      "prNumber": 42,
+      "baseRef": "main",
+      "headRef": "refs/pull/42/head",
+      "tags": { "difficulty": "easy", "prType": "ui", "author": "human" }
+    }
+  ]
+}
+```
+
+`id` is unique, made of letters, digits, `.`, `_` and `-`. `prNumber` is optional (a local repository has none). Tags: `difficulty` is `easy` or `realistic`, `prType` is `ui`, `api`, `mixed` or `refactor` (use `refactor` for any PR that should not change behavior; the false-difference criterion counts on it), `author` is `human` or `agent`. `--only prType=api` (repeatable; all must match) runs a subset.
+
+An entry is **done** when `<out>` holds a record of it from the same bdiff version (`toolVersion`), whatever its status, except an interrupted run (`ABORTED`). If some selected entries are done, `bdiff batch` refuses to start (exit 2) unless `--resume` (skip them: continue a batch that was interrupted) or `--force` (run them again). Ctrl+C stops the batch: the runs in progress are aborted and recorded, no further entry starts, and the command exits with 130; run it again with `--resume`. `bdiff batch` exits with 0 when every entry it ran was recorded (whatever the runs' status), 1 when some could not be.
+
+## `bdiff stats`
+
+Reads every `run.json` under `<out>/runs`, prints the experiment's numbers and writes them to `<out>/stats.json` (see [metrics.md](metrics.md#statsjson)). A dataset entry recorded several times counts once (its latest record); single runs each count. `--by <tag>` adds the same numbers per tag value. It exits with 1 when there is no record.
+
+It ends with the epic's success criteria, each `PASS`, `FAIL` or `N/A` (not enough runs to judge):
+
+| Criterion           | Measured as                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `setup-success`     | ≥ 50% of the runs that tried to set the app up got it running (after repair, if any).                        |
+| `median-duration`   | Median duration of the runs that were not skipped < 10 min.                                                  |
+| `false-differences` | ≤ 10% of the successful runs tagged `prType: refactor` (no behavior change expected) have a finding.         |
+| `hidden-changes`    | At least one run has a finding the interpretation flagged as unexpected for the PR's intent (needs the LLM). |
 
 ## Explicit API requests
 
