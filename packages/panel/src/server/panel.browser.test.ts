@@ -31,8 +31,9 @@ describe('panel with demo data', () => {
           fs: nodeFileSystem,
           clock: systemClock,
           root: PANEL_PATHS.demo,
-          replayMs: 20_000,
-          pauseMs: 5_000,
+          // The whole replay fits in the first test, then the run stays finished for a while.
+          replayMs: 6_000,
+          pauseMs: 120_000,
         }),
         fs: nodeFileSystem,
         clock: systemClock,
