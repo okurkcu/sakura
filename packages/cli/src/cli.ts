@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   BdiffError,
   createAnthropicLlmClient,
+  createArtifactPaths,
   createApiProbeStage,
   createCostCalculator,
   createDependencyCruiserGraph,
@@ -25,17 +26,19 @@ import {
   nodeFileSystem,
   pngCodec,
   runPipeline,
+  SeveritySchema,
   systemClock,
 } from '@bdiff/core';
 import type {
   Clock,
   Exec,
   FileSystem,
+  Finding,
   LlmClient,
   Logger,
   LogLevel,
   PipelineStages,
-  RunRecord,
+  RunResult,
 } from '@bdiff/core';
 import { createReportStage } from '@bdiff/report';
 import { Command, CommanderError } from 'commander';
@@ -233,18 +236,26 @@ async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
       signal: controller.signal,
       logger,
     });
+    const outDir = path.resolve(deps.cwd, config.outDir);
     const { result, runJsonPath } = await runPipeline(config.target, deps.createStages({ llm }), {
       clock: deps.clock,
       fs: deps.fs,
       logger,
       costs,
-      outDir: path.resolve(deps.cwd, config.outDir),
+      outDir,
       toolVersion,
       timeoutMs: config.timeoutMs,
       budgetUsd: config.budgetUsd,
       signal: controller.signal,
     });
-    io.stdout.write(summarize(result.record, runJsonPath));
+    const reportPath = createArtifactPaths(outDir, result.record.runId).reportHtml;
+    io.stdout.write(
+      summarize(result, {
+        runJsonPath,
+        // A failed report stage may leave no page behind.
+        ...((await deps.fs.exists(reportPath)) ? { reportPath } : {}),
+      }),
+    );
     if (interrupted()) {
       return EXIT_CODES.interrupted;
     }
@@ -259,17 +270,51 @@ async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
   }
 }
 
-/** One short, human-readable summary of a finished run. */
-export function summarize(record: RunRecord, runJsonPath: string): string {
-  const seconds = (record.durationMs / 1000).toFixed(1);
-  const cost = `LLM $${record.totals.llmCostUsd.toFixed(4)}`;
+/** Files of a finished run that {@link summarize} points to. */
+export interface RunFiles {
+  readonly runJsonPath: string;
+  /** Absent when no report was written. */
+  readonly reportPath?: string;
+}
+
+/**
+ * One short, human-readable summary of a finished run: outcome, findings by severity, duration,
+ * LLM cost, and where the report and record are. Pure.
+ */
+export function summarize(result: RunResult, files: RunFiles): string {
+  const { record, findings = [] } = result;
   const outcome =
     record.status === 'failed'
       ? `failed at ${record.failure.stage ?? 'startup'} (${record.failure.code}): ${record.failure.message}`
       : record.status === 'skipped'
         ? `skipped: ${record.skip.reason}`
-        : `success, ${String(record.counts.findings)} findings`;
-  return `bdiff: ${outcome}\n  ${seconds}s · ${cost} · run ${record.runId}\n  record: ${runJsonPath}\n`;
+        : `success, ${findingCounts(findings)}`;
+  const lines = [`bdiff: ${outcome}`];
+  if (record.status === 'failed' && findings.length > 0) {
+    // The report still shows what a run found before it failed (e.g. at interpret).
+    lines.push(`  ${findingCounts(findings)} before the failure`);
+  }
+  const seconds = (record.durationMs / 1000).toFixed(1);
+  lines.push(
+    `  ${seconds}s · LLM $${record.totals.llmCostUsd.toFixed(4)} · run ${record.runId}`,
+    ...(files.reportPath === undefined ? [] : [`  report: ${files.reportPath}`]),
+    `  record: ${files.runJsonPath}`,
+  );
+  return `${lines.join('\n')}\n`;
+}
+
+/** e.g. `3 findings (1 breaking, 2 info)`, most severe first. */
+function findingCounts(findings: readonly Finding[]): string {
+  const bySeverity = [...SeveritySchema.options]
+    .reverse()
+    .map((severity) => ({
+      severity,
+      count: findings.filter((finding) => finding.severity === severity).length,
+    }))
+    .filter(({ count }) => count > 0)
+    .map(({ severity, count }) => `${String(count)} ${severity}`);
+  const total = `${String(findings.length)} ${findings.length === 1 ? 'finding' : 'findings'}`;
+  return bySeverity.length === 0 ? total : `${total} (${bySeverity.join(', ')})`;
 }
 
 function describe(error: unknown): string {

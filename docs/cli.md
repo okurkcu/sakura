@@ -35,7 +35,17 @@ Other environment variables:
 
 ## Output
 
-- **stdout:** a short summary (status, duration, LLM cost, path of `run.json`).
+- **stdout:** a short summary: outcome, findings by severity (also for a run that failed after the diff, e.g. at interpret), duration, LLM cost, run id, and the paths of the report and `run.json`:
+
+  ```text
+  bdiff: success, 2 findings (1 breaking, 1 warning)
+    84.2s · LLM $0.0031 · run 01k6t3y8k0g3m5x9a2b7c4d6ef
+    report: .bdiff/runs/01k6t3y8k0g3m5x9a2b7c4d6ef/report/index.html
+    record: .bdiff/runs/01k6t3y8k0g3m5x9a2b7c4d6ef/run.json
+  ```
+
+  The paths are absolute. The `report:` line is left out when no report was written (a failing report stage).
+
 - **stderr:** structured JSON logs (pino) and usage errors.
 - **Files:** `<out>/runs/<runId>/run.json` and one row in `<out>/results.csv`; see [metrics.md](metrics.md).
 - **Report:** `<out>/runs/<runId>/report/index.html`, for every run (failed and skipped ones too). Open it from disk: it needs no server and loads nothing from the network. Screenshots, overlays and logs are linked by relative path, so keep the run directory together when moving it.
