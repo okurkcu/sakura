@@ -62,6 +62,7 @@ describe('RESULTS_CSV_COLUMNS', () => {
       'base_ref',
       'head_ref',
       'pr_number',
+      'dataset_id',
       'ms_workspace',
       'ms_recipe',
       'ms_environment',
@@ -88,6 +89,8 @@ describe('RESULTS_CSV_COLUMNS', () => {
       'raw_diffs',
       'noise_diffs',
       'findings',
+      'findings_breaking',
+      'findings_unexpected',
     ]);
   });
 

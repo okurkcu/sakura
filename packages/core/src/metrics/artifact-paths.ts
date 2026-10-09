@@ -80,6 +80,22 @@ export function createArtifactPaths(root: string, runId: RunId): ArtifactPaths {
   };
 }
 
+/** Files of an output root that belong to no single run: the batch index and `stats.json`. */
+export interface OutputPaths {
+  /** `report/batch-index.html`: the table of a batch's runs. */
+  readonly batchIndexHtml: string;
+  /** `stats.json`: what `bdiff stats` computed. */
+  readonly statsJson: string;
+}
+
+/** The {@link OutputPaths} of an output root. Pure. */
+export function createOutputPaths(root: string): OutputPaths {
+  return {
+    batchIndexHtml: path.join(root, 'report', 'batch-index.html'),
+    statsJson: path.join(root, 'stats.json'),
+  };
+}
+
 /**
  * File-name stem for an untrusted key such as a route or request: a readable slug plus 8 hex
  * characters of the key's SHA-256. The slug keeps names recognizable; the hash keeps distinct

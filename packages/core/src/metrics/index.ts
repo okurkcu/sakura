@@ -1,4 +1,5 @@
 export * from './artifact-paths.js';
+export * from './finding-summary.js';
 export * from './metrics-store.js';
 export * from './pricing.js';
 export * from './results-csv.js';

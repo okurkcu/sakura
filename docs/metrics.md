@@ -35,6 +35,8 @@ Written atomically: a temp file is written next to it and renamed, so a reader n
 | `apiRequests`    | array                                   | The API probe's request set, in send order: `key`, `source` (`explicit`, `route` or `generated` by the LLM), `method`, `path`, `headers`, `body`, `description`, `endpoint`. Empty when no API was probed.                                                                               |
 | `riskLevel`      | `low` \| `medium` \| `high` \| `null`   | The interpretation's risk level; `null` when the run produced no interpretation (failed or skipped before it).                                                                                                                                                                           |
 | `setupAttempts`  | array                                   | Attempts of the setup repair loop, oldest first (empty when setup needed no repair): `attempt`, `trigger` (`stage`, `code`, `side`), `tier`, `patch` (the recipe patch, or `null`), `outcome` (`repaired`, `setup-failed`, `rejected` or `no-patch`), `errorCode`, `problem`, `costUsd`. |
+| `dataset`        | object \| `null`                        | The dataset entry of a batch run (`bdiff batch`): `id` and `tags` (`difficulty`, `prType`, `author`); `null` for a single run.                                                                                                                                                           |
+| `findingSummary` | object                                  | Findings by severity (`info`, `warning`, `breaking`) and `unexpected`: how many the interpretation flagged as not accounted for by the PR's intent. Zero until the diff (and interpret) stage ran.                                                                                       |
 
 Token counts per LLM call mirror the API's `usage` object:
 
@@ -68,6 +70,7 @@ The first line is the header. Rows are RFC 4180: fields containing a comma, quot
 | `base_ref`                  | Base ref as given.                                                                                                               |
 | `head_ref`                  | Head ref as given.                                                                                                               |
 | `pr_number`                 | Pull request number, if any.                                                                                                     |
+| `dataset_id`                | Dataset entry id of a batch run; empty for a single run.                                                                         |
 | `ms_workspace`              | Total ms in the workspace stage.                                                                                                 |
 | `ms_recipe`                 | Total ms in the recipe stage.                                                                                                    |
 | `ms_environment`            | Total ms in the environment stage (all attempts).                                                                                |
@@ -94,6 +97,29 @@ The first line is the header. Rows are RFC 4180: fields containing a comma, quot
 | `raw_diffs`                 | Differences between baseA and head before noise filtering, counted per visual region, text block, runtime signal and API change. |
 | `noise_diffs`               | Of those, the ones set aside as noise because baseA and baseB already differ there.                                              |
 | `findings`                  | Findings reported.                                                                                                               |
+| `findings_breaking`         | Findings with severity `breaking`.                                                                                               |
+| `findings_unexpected`       | Findings the interpretation flagged as unexpected for the PR's intent.                                                           |
+
+## `stats.json`
+
+Written by `bdiff stats` to the output root. `records` is how many records were counted (the latest per dataset entry, plus every single run). `overall` holds the numbers below for all of them; with `--by <tag>`, `groups.values` holds them per tag value (`(none)` for runs without that tag). `criteria` lists the success criteria (`id`, `description`, `measured`, `verdict`: `pass`, `fail` or `n/a`); see [cli.md](cli.md#bdiff-stats).
+
+| Field                                    | Meaning                                                                                                                            |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `runs`, `succeeded`, `failed`, `skipped` | Run counts by status.                                                                                                              |
+| `skipRate`                               | `skipped / runs`.                                                                                                                  |
+| `setup`                                  | `attempted`: runs that tried to set the app up (recipe, environment or repair ran); `succeeded`: those whose apps started; `rate`. |
+| `repaired`                               | Runs that needed the setup repair loop (`attempted`) and those it repaired (`succeeded`).                                          |
+| `durationMs`                             | Median and p90 (nearest rank) duration of the runs that were not skipped.                                                          |
+| `stageMs`                                | The same per stage, over the runs where the stage ran (all its executions summed).                                                 |
+| `llmCostUsd`                             | LLM cost per run: median, p90 and `total`.                                                                                         |
+| `computeSeconds`                         | Container run time per run, both sides: median, p90 and `total`. There is no compute price, so no dollars.                         |
+| `noiseRatio`                             | `noiseDiffs / rawDiffs` summed over the runs: the share of differences that were noise.                                            |
+| `findingsPerRun`                         | Findings per successful run: median, p90, `mean`.                                                                                  |
+| `breakingOrUnexpected`                   | Successful runs with at least one breaking or unexpected finding, and their share.                                                 |
+| `failureReasons`                         | Failure codes of failed runs with their counts, most frequent first.                                                               |
+
+Every rate and statistic is `null` when the group has no run to compute it from.
 
 ## Pricing: `config/pricing.json`
 

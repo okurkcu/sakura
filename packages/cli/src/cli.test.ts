@@ -304,6 +304,181 @@ describe('runCli', () => {
   });
 });
 
+describe('runCli batch and stats', () => {
+  let cwd: string;
+
+  beforeEach(async () => {
+    cwd = await mkdtemp(path.join(tmpdir(), 'bdiff-cli-batch-'));
+  });
+
+  afterEach(async () => {
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  const writeDataset = async (ids: readonly string[]) => {
+    const file = path.join(cwd, 'dataset.json');
+    await nodeFileSystem.writeFile(
+      file,
+      JSON.stringify({
+        entries: ids.map((id, i) => ({
+          id,
+          repoUrl: 'https://github.com/acme/shop.git',
+          baseRef: 'main',
+          headRef: `pr/${id}`,
+          tags: {
+            difficulty: i % 2 === 0 ? 'easy' : 'realistic',
+            prType: 'ui',
+            author: 'human',
+          },
+        })),
+      }),
+    );
+    return file;
+  };
+  const recordedIds = async () => {
+    const out = path.join(cwd, '.bdiff', 'runs');
+    const ids: string[] = [];
+    for (const runId of [...(await nodeFileSystem.readdir(out))].sort()) {
+      const record = RunRecordSchema.parse(
+        JSON.parse(await readFile(path.join(out, runId, 'run.json'), 'utf8')),
+      );
+      ids.push(
+        `${record.dataset?.id ?? '-'}:${record.status === 'failed' ? record.failure.code : record.status}`,
+      );
+    }
+    return ids;
+  };
+
+  it('runs every entry, writes the index, and refuses to run them again unless asked', async () => {
+    const dataset = await writeDataset(['a', 'b', 'c']);
+    const h = harness(cwd);
+
+    expect(await runCli(['batch', dataset], h.io, h.deps)).toBe(EXIT_CODES.success);
+
+    expect(await recordedIds()).toEqual(['a:success', 'b:success', 'c:success']);
+    expect(h.output().stdout).toContain('bdiff batch: 3 entries, 3 to run');
+    expect(h.output().stdout).toContain('[2/3] b: success, 0 findings');
+    expect(h.output().stdout).toContain('bdiff batch: 3 recorded, 0 not recorded');
+    const index = await readFile(path.join(cwd, '.bdiff', 'report', 'batch-index.html'), 'utf8');
+    expect(index).toContain('pr/c');
+
+    const again = harness(cwd);
+    expect(await runCli(['batch', dataset], again.io, again.deps)).toBe(EXIT_CODES.usage);
+    expect(again.output().stderr).toContain(
+      '3 of these entries already have a record from this bdiff version (test-version)',
+    );
+
+    const resumed = harness(cwd);
+    expect(await runCli(['batch', dataset, '--resume'], resumed.io, resumed.deps)).toBe(
+      EXIT_CODES.success,
+    );
+    expect(resumed.output().stdout).toContain('3 entries, 0 to run, 3 already recorded');
+
+    const forced = harness(cwd);
+    expect(
+      await runCli(
+        ['batch', dataset, '--force', '--only', 'difficulty=easy'],
+        forced.io,
+        forced.deps,
+      ),
+    ).toBe(EXIT_CODES.success);
+    expect(await recordedIds()).toEqual([
+      'a:success',
+      'b:success',
+      'c:success',
+      'a:success',
+      'c:success',
+    ]);
+  });
+
+  it('continues an interrupted batch where it stopped with --resume', async () => {
+    const dataset = await writeDataset(['a', 'b', 'c']);
+    const stubs = createStubStages();
+    let blocked = false;
+    const h = harness(cwd, {
+      ...stubs,
+      environment: {
+        name: 'environment',
+        run: (input, ctx) =>
+          ctx.target.headRef === 'pr/b'
+            ? new Promise((_resolve, reject) => {
+                ctx.signal.addEventListener('abort', () => {
+                  reject(abortError(ctx.signal));
+                });
+                blocked = true;
+              })
+            : stubs.environment.run(input, ctx),
+      },
+    });
+
+    const running = runCli(['batch', dataset], h.io, h.deps);
+    await vi.waitFor(() => {
+      expect(blocked).toBe(true);
+    });
+    h.signals.emit('SIGINT');
+
+    expect(await running).toBe(EXIT_CODES.interrupted);
+    expect(await recordedIds()).toEqual(['a:success', 'b:ABORTED']);
+    expect(h.output().stdout).toContain('interrupted (run again with --resume)');
+
+    const resumed = harness(cwd);
+    expect(await runCli(['batch', dataset, '--resume'], resumed.io, resumed.deps)).toBe(
+      EXIT_CODES.success,
+    );
+
+    expect(resumed.output().stdout).toContain('3 entries, 2 to run, 1 already recorded');
+    expect(await recordedIds()).toEqual(['a:success', 'b:ABORTED', 'b:success', 'c:success']);
+  });
+
+  it('aggregates the recorded runs with stats and writes stats.json', async () => {
+    const dataset = await writeDataset(['a', 'b', 'c']);
+    const h = harness(cwd);
+    await runCli(['batch', dataset], h.io, h.deps);
+
+    const s = harness(cwd);
+    expect(await runCli(['stats', '--by', 'difficulty'], s.io, s.deps)).toBe(EXIT_CODES.success);
+
+    expect(s.output().stdout).toContain('bdiff stats: 3 runs (3 success, 0 failed, 0 skipped)');
+    expect(s.output().stdout).toMatch(
+      /PASS {2}Setup works automatically in ≥ 50% of repositories: 100% \(3\/3\)/,
+    );
+    expect(s.output().stdout).toContain('By difficulty');
+    const stats = JSON.parse(await readFile(path.join(cwd, '.bdiff', 'stats.json'), 'utf8')) as {
+      records: number;
+      groups: { values: Record<string, { runs: number }> };
+    };
+    expect(stats.records).toBe(3);
+    expect(stats.groups.values.easy?.runs).toBe(2);
+  });
+
+  it.each([
+    { name: 'a missing dataset', argv: ['batch', 'missing.json'], message: /Dataset not found/ },
+    {
+      name: '--resume with --force',
+      argv: ['batch', 'missing.json', '--resume', '--force'],
+      message: /--resume and --force cannot be combined/,
+    },
+    {
+      name: 'a third concurrent run',
+      argv: ['batch', 'missing.json', '--concurrency', '3'],
+      message: /--concurrency must be at most 2/,
+    },
+    { name: 'an unknown --by', argv: ['stats', '--by', 'size'], message: /--by must be one of/ },
+  ])('exits 2 for $name', async ({ argv, message }) => {
+    const h = harness(cwd);
+
+    expect(await runCli(argv, h.io, h.deps)).toBe(EXIT_CODES.usage);
+    expect(h.output().stderr).toMatch(message);
+  });
+
+  it('exits 1 from stats when nothing was recorded', async () => {
+    const h = harness(cwd);
+
+    expect(await runCli(['stats'], h.io, h.deps)).toBe(EXIT_CODES.failed);
+    expect(h.output().stderr).toContain('no run records');
+  });
+});
+
 describe('summarize', () => {
   const files = { runJsonPath: '/out/run.json', reportPath: '/out/report/index.html' };
   const findings = (...severities: Severity[]): Finding[] =>

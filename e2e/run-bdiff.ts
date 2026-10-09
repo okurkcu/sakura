@@ -32,17 +32,54 @@ export interface RunBdiffOptions {
  * Runs `bdiff run` in process with the CLI's real adapters and stages (`createDefaultCliDeps`);
  * only the LLM is replaced. Logs go to a test logger. Returns what the CLI printed and its exit code.
  */
-export async function runBdiff(options: RunBdiffOptions): Promise<CliRun> {
+export function runBdiff(options: RunBdiffOptions): Promise<CliRun> {
+  const { editStages } = options;
+  return runBdiffCli(
+    [
+      'run',
+      '--repo',
+      options.repo,
+      '--base',
+      options.base,
+      '--head',
+      options.head,
+      '--out',
+      options.outDir,
+    ],
+    {
+      cacheDir: options.cacheDir,
+      cwd: options.cwd,
+      stages: (real) => {
+        const stages = real(options.llm);
+        return editStages === undefined ? stages : editStages(stages);
+      },
+    },
+  );
+}
+
+/** Inputs of {@link runBdiffCli}. */
+export interface RunBdiffCliOptions {
+  readonly cacheDir: string;
+  readonly cwd: string;
+  /**
+   * The stages of one run, built from the real ones given an LLM client. Called once per run (a
+   * batch has many); it must pass a fake LLM, since tests never call the real API.
+   */
+  readonly stages: (real: (llm: LlmClient) => PipelineStages) => PipelineStages;
+}
+
+/** Runs any `bdiff` command in process with the CLI's real adapters, as {@link runBdiff} does. */
+export async function runBdiffCli(
+  argv: readonly string[],
+  options: RunBdiffCliOptions,
+): Promise<CliRun> {
   const env = { BDIFF_CACHE_DIR: options.cacheDir, BDIFF_TOOL_VERSION: 'test' };
   const real = createDefaultCliDeps(env);
   const deps: CliDeps = {
     ...real,
     cwd: options.cwd,
     createLogger: () => createTestLogger(),
-    createStages: (services) => {
-      const stages = real.createStages({ ...services, llm: options.llm });
-      return options.editStages === undefined ? stages : options.editStages(stages);
-    },
+    createStages: (services) => options.stages((llm) => real.createStages({ ...services, llm })),
   };
   let stdout = '';
   let stderr = '';
@@ -55,21 +92,7 @@ export async function runBdiff(options: RunBdiffOptions): Promise<CliRun> {
       throw new Error(`unexpected forced exit ${String(code)}`);
     },
   };
-  const exitCode = await runCli(
-    [
-      'run',
-      '--repo',
-      options.repo,
-      '--base',
-      options.base,
-      '--head',
-      options.head,
-      '--out',
-      options.outDir,
-    ],
-    io,
-    deps,
-  );
+  const exitCode = await runCli(argv, io, deps);
   return { exitCode, stdout, stderr };
 }
 

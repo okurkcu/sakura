@@ -173,6 +173,53 @@ describe('createRunRecorder', () => {
   });
 });
 
+describe('createRunRecorder: dataset and finding summary', () => {
+  it('records the dataset entry of a batch run and the finding summary', () => {
+    const recorder = createRunRecorder({
+      runId: TEST_RUN_ID,
+      target: TEST_TARGET,
+      toolVersion: 'v1',
+      clock: new FakeClock(),
+      costs: createTestCostCalculator(),
+      dataset: { id: 'shop-42', tags: { difficulty: 'easy' } },
+    });
+    recorder.setFindingSummary({ info: 1, warning: 0, breaking: 2, unexpected: 1 });
+
+    const record = recorder.finish({ status: 'success' });
+
+    expect(record).toMatchObject({
+      dataset: { id: 'shop-42', tags: { difficulty: 'easy' } },
+      findingSummary: { info: 1, warning: 0, breaking: 2, unexpected: 1 },
+    });
+  });
+
+  it('defaults to no dataset and zero findings, also for old records', () => {
+    const record = createTestRunRecorder().recorder.finish({ status: 'success' });
+    expect(record).toMatchObject({
+      dataset: null,
+      findingSummary: { info: 0, warning: 0, breaking: 0, unexpected: 0 },
+    });
+
+    const old: Record<string, unknown> = { ...record };
+    delete old.dataset;
+    delete old.findingSummary;
+    expect(RunRecordSchema.parse(old)).toEqual(record);
+  });
+
+  it('rejects an invalid dataset entry up front', () => {
+    expect(() =>
+      createRunRecorder({
+        runId: TEST_RUN_ID,
+        target: TEST_TARGET,
+        toolVersion: 'v1',
+        clock: new FakeClock(),
+        costs: createTestCostCalculator(),
+        dataset: { id: '', tags: {} },
+      }),
+    ).toThrow(BdiffError);
+  });
+});
+
 describe('createRunRecorder: outcome stage and preview', () => {
   it("uses the outcome's stage over the last failed timing", async () => {
     const { recorder } = createTestRunRecorder();
