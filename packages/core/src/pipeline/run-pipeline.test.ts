@@ -5,7 +5,6 @@ import { runPipeline } from './run-pipeline.js';
 import type { PipelineDeps } from './run-pipeline.js';
 import type { RunResult } from './run-result.js';
 import type { StageContext } from './stage.js';
-import { createStubStages } from './stub-stages.js';
 import type { StageName } from '../domain/stage.js';
 import { abortError } from '../errors/abort.js';
 import { BdiffError } from '../errors/bdiff-error.js';
@@ -16,6 +15,7 @@ import { FakeExec } from '../testing/fake-exec.js';
 import { FakeLlmClient } from '../testing/fake-llm-client.js';
 import { createMemoryMetricsStore } from '../testing/memory-metrics-store.js';
 import { createTestCostCalculator, TEST_RUN_ID, TEST_TARGET } from '../testing/run-records.js';
+import { createStubStages } from '../testing/stub-stages.js';
 import { createTestLogger } from '../testing/test-logger.js';
 
 type Override = (input: unknown, ctx: StageContext) => Promise<unknown>;

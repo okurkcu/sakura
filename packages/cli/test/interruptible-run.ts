@@ -3,7 +3,8 @@
  * aborts, with real process signals. Prints `READY` once blocked and `CLEANED <hook>` when a cleanup
  * hook runs, so a test can send SIGINT and observe the result.
  */
-import { abortError, createStubStages, systemClock } from '@bdiff/core';
+import { abortError, systemClock } from '@bdiff/core';
+import { createStubStages } from '@bdiff/core/testing';
 
 import { createDefaultCliDeps, runCli } from '../src/cli.js';
 

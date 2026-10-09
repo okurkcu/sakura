@@ -9,7 +9,6 @@ import {
   createExecaExec,
   createFetchHttpClient,
   createRecipeStage,
-  createStubStages,
   createWorkspaceStage,
   nodeFileSystem,
   runPipeline,
@@ -18,6 +17,7 @@ import {
 import type { Exec, Target } from '@bdiff/core';
 import {
   createMemoryMetricsStore,
+  createStubStages,
   createTestCostCalculator,
   createTestLogger,
   createTestStageContext,

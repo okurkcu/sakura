@@ -14,10 +14,10 @@ import type { CostCalculator, PricingTable } from '../metrics/pricing.js';
 import { createRunRecorder } from '../metrics/run-recorder.js';
 import { runPipeline } from '../pipeline/run-pipeline.js';
 import type { Budget } from '../pipeline/stage.js';
-import { createStubStages } from '../pipeline/stub-stages.js';
 import { FakeClock } from '../testing/fake-clock.js';
 import { createMemoryMetricsStore } from '../testing/memory-metrics-store.js';
 import { TEST_RUN_ID, TEST_TARGET } from '../testing/run-records.js';
+import { createStubStages } from '../testing/stub-stages.js';
 import { createTestLogger } from '../testing/test-logger.js';
 
 const repoConfig = (file: string) => path.resolve(import.meta.dirname, '../../../../config', file);

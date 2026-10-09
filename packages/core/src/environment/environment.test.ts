@@ -13,10 +13,10 @@ import { waitUntilHealthy } from './health.js';
 import type { HealthTarget } from './health.js';
 import { setupFailure, setupTimeout, tailLines } from './setup-failure.js';
 import type { Recipe } from '../domain/recipe.js';
-import { STUB_RECIPE } from '../pipeline/stub-stages.js';
 import { FakeClock } from '../testing/fake-clock.js';
 import { FakeExec } from '../testing/fake-exec.js';
 import { FakeHttp } from '../testing/fake-http.js';
+import { STUB_RECIPE } from '../testing/stub-stages.js';
 
 const recipe = (overrides: Partial<Recipe> = {}): Recipe => ({ ...STUB_RECIPE, ...overrides });
 const RUN_ID = '01k6t3y8k0g3m5x9a2b7c4d6ef';

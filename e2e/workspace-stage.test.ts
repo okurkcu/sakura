@@ -5,7 +5,6 @@ import path from 'node:path';
 import {
   BdiffError,
   createExecaExec,
-  createStubStages,
   createWorkspaceStage,
   nodeFileSystem,
   runPipeline,
@@ -14,6 +13,7 @@ import {
 import type { ChangedFile, Exec, Target } from '@bdiff/core';
 import {
   createMemoryMetricsStore,
+  createStubStages,
   createTestCostCalculator,
   createTestLogger,
   createTestStageContext,

@@ -6,4 +6,5 @@ export * from './images.js';
 export * from './memory-metrics-store.js';
 export * from './run-records.js';
 export * from './stage-context.js';
+export * from './stub-stages.js';
 export * from './test-logger.js';

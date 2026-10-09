@@ -1,13 +1,15 @@
 name: Docker tests
 
-# Integration tests that build and run the fixture app in containers, and drive a real Chromium.
-# Slower than CI, so they run only when code that affects them changes.
+# Integration tests that build and run the fixture app in containers and drive a real Chromium,
+# and the end-to-end suite (`bdiff run` on every fixture branch), as two parallel jobs. Slower than
+# CI, so they run only when code that affects them changes.
 on:
   push:
     branches: [main]
     paths: &paths
       - packages/core/**
       - packages/cli/**
+      - packages/report/**
       - fixtures/**
       - e2e/**
       - pnpm-lock.yaml
@@ -25,9 +27,17 @@ concurrency:
 
 jobs:
   docker:
-    name: docker integration tests
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: integration
+            name: docker integration tests
+          - project: e2e
+            name: e2e on the fixture
     steps:
       - uses: actions/checkout@v7
 
@@ -48,4 +58,5 @@ jobs:
 
       - run: docker pull --quiet node:22
 
-      - run: pnpm test:docker
+      # The e2e suite logs each branch's wall time ("e2e wall time …") to track its speed.
+      - run: pnpm test:docker --project ${{ matrix.project }}

@@ -10,20 +10,21 @@ Work is tracked in Jira: project **SKR**, epic **SKR-14**, tasks SKR-15 → SKR-
 
 ## Commands
 
-| Command                | What it does                                                          |
-| ---------------------- | --------------------------------------------------------------------- |
-| `pnpm install`         | Install dependencies (Node ≥ 22.12, pnpm via corepack).               |
-| `pnpm check`           | **lint + typecheck + test. Must be green before a task is done.**     |
-| `pnpm lint`            | ESLint (zero warnings allowed) and Prettier check.                    |
-| `pnpm typecheck`       | `tsc` over root tooling files and every package, tests included.      |
-| `pnpm test`            | Vitest, all projects. `pnpm vitest run --project core` for just one.  |
-| `pnpm test:coverage`   | Vitest with v8 coverage.                                              |
-| `pnpm test:docker`     | `*.docker.test.ts` and `*.browser.test.ts`; need Docker and Chromium. |
-| `pnpm browser:install` | Installs the Chromium (Playwright headless shell) the UI probe uses.  |
-| `pnpm bdiff run …`     | Runs the CLI from source; flags and exit codes in `docs/cli.md`.      |
-| `pnpm fixture:build`   | Builds the fixture git repo in a temp dir and prints its path.        |
-| `pnpm build`           | `tsc -b tsconfig.build.json` (project references) into `dist/`.       |
-| `pnpm format`          | Prettier write.                                                       |
+| Command                          | What it does                                                                                |
+| -------------------------------- | ------------------------------------------------------------------------------------------- |
+| `pnpm install`                   | Install dependencies (Node ≥ 22.12, pnpm via corepack).                                     |
+| `pnpm check`                     | **lint + typecheck + test. Must be green before a task is done.**                           |
+| `pnpm lint`                      | ESLint (zero warnings allowed) and Prettier check.                                          |
+| `pnpm typecheck`                 | `tsc` over root tooling files and every package, tests included.                            |
+| `pnpm test`                      | Vitest, all projects. `pnpm vitest run --project core` for just one.                        |
+| `pnpm test:coverage`             | Vitest with v8 coverage.                                                                    |
+| `pnpm test:docker`               | `*.docker.test.ts` and `*.browser.test.ts`; need Docker and Chromium.                       |
+| `pnpm test:docker --project e2e` | Only the end-to-end suite; `--project integration` runs the other Docker and browser tests. |
+| `pnpm browser:install`           | Installs the Chromium (Playwright headless shell) the UI probe uses.                        |
+| `pnpm bdiff run …`               | Runs the CLI from source; flags and exit codes in `docs/cli.md`.                            |
+| `pnpm fixture:build`             | Builds the fixture git repo in a temp dir and prints its path.                              |
+| `pnpm build`                     | `tsc -b tsconfig.build.json` (project references) into `dist/`.                             |
+| `pnpm format`                    | Prettier write.                                                                             |
 
 ## Architecture
 
@@ -74,7 +75,7 @@ finalization (always, also after failure, skip, abort or timeout):
   cleanup hooks (LIFO) → report → final record → run.json + results.csv (metrics)
 ```
 
-- `runPipeline(target, stages, deps)` in `packages/core/src/pipeline` is the orchestrator; `PipelineStages` types every stage's input and output. Each stage task replaces one stub from `createStubStages()` in the CLI composition root; the flow stays the same.
+- `runPipeline(target, stages, deps)` in `packages/core/src/pipeline` is the orchestrator; `PipelineStages` types every stage's input and output. The CLI composition root (`createDefaultCliDeps`) wires the real stage of every step; `createStubStages()` from `@bdiff/core/testing` is for tests that run the pipeline with only some real stages.
 - Each stage: typed input → typed output. Stages never call each other; only the orchestrator sequences them.
 - Impact runs right after the workspace so a skipped PR (docs only, tests only) never builds containers.
 - The report runs in finalization so failed and skipped runs get a report too; it receives `RunResult` with a preview of the record. A failing report fails an otherwise successful run (stage `report`); a failing cleanup hook fails it with `CLEANUP_FAILED`.
@@ -188,8 +189,9 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 - **Adding a package:** copy an existing package's `package.json`, `tsconfig.json` and `tsconfig.build.json`; add it to the root `tsconfig.build.json` references and to `projects` in `vitest.config.ts`; add ESLint boundary rules if it has import restrictions.
 - **Tests** live next to the code as `src/**/*.test.ts`. Repo-level tooling tests go in `tests/`.
 - **Stage tests** run a single stage outside the pipeline with `createTestStageContext()` from `@bdiff/core/testing` (fake clock, test logger, recorded cleanup hooks). Tests against the fixture repository live in `e2e/`.
-- **Docker tests** are named `*.docker.test.ts`. They are excluded from `pnpm test` and `pnpm check` and run with `pnpm test:docker` (`vitest.docker.config.ts`, serial, long timeouts), and in CI by `.github/workflows/docker.yml` when core, cli, fixtures or e2e change. Every container they create is removed in `finally`.
-- **Browser tests** (`*.browser.test.ts`) drive a real Chromium against pages the test serves itself, without Docker. They run with the Docker tests (`pnpm test:docker`, and the same CI job), so `pnpm check` never needs a browser.
+- **Docker tests** are named `*.docker.test.ts`. They are excluded from `pnpm test` and `pnpm check` and run with `pnpm test:docker` (`vitest.docker.config.ts`, serial, long timeouts), and in CI by `.github/workflows/docker.yml` when core, cli, report, fixtures or e2e change. Every container they create is removed in `finally`.
+- **The end-to-end suite** (`e2e/fixture.docker.test.ts`, vitest project `e2e`) runs `bdiff run` in process on every fixture branch with the CLI's real adapters and stages, only the LLM replaced by `FakeLlmClient`, and checks the result against `fixtures/expected.json`, the summary, the report and leftovers. CI runs it as its own job next to the other Docker tests (project `integration`); it logs each branch's wall time (`e2e wall time …`).
+- **Browser tests** (`*.browser.test.ts`) drive a real Chromium against pages the test serves itself, without Docker. They run with the Docker tests (`pnpm test:docker`, and the same CI job as project `integration`), so `pnpm check` never needs a browser.
 - **The fixture** is ground truth: changing the sample app or a branch overlay means updating `fixtures/expected.json` in the same PR. Its lockfile is regenerated with `pnpm install --lockfile-only` in a copy outside the workspace; never install or run the fixture app on the host.
 - **Imports** use explicit `.js` extensions for relative paths (NodeNext), `import type` for types, and the order enforced by `import-x/order`.
 - **Lint suppressions** need a reason: `// eslint-disable-next-line <rule> -- <why>`. Unused or undescribed directives fail lint.

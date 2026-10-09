@@ -3,5 +3,4 @@ export * from './pipeline-stages.js';
 export * from './run-pipeline.js';
 export * from './run-result.js';
 export * from './stage.js';
-export * from './stub-stages.js';
 export * from './with-timeout.js';
