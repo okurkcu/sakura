@@ -23,6 +23,7 @@ Work is tracked in Jira: project **SKR**, epic **SKR-14**, tasks SKR-15 → SKR-
 | `pnpm browser:install`           | Installs the Chromium (Playwright headless shell) the UI probe uses.                        |
 | `pnpm bdiff run …`               | Runs the CLI from source; flags and exit codes in `docs/cli.md`.                            |
 | `pnpm bdiff batch <dataset>`     | Runs every PR of a dataset file; `pnpm bdiff stats` aggregates the records (`docs/cli.md`). |
+| `pnpm candidates`                | Finds candidate PRs on GitHub (needs `GITHUB_TOKEN`); see `docs/dataset.md`.                |
 | `pnpm fixture:build`             | Builds the fixture git repo in a temp dir and prints its path.                              |
 | `pnpm build`                     | `tsc -b tsconfig.build.json` (project references) into `dist/`.                             |
 | `pnpm format`                    | Prettier write.                                                                             |
@@ -41,7 +42,8 @@ fixtures/                 @bdiff/fixtures workspace package
   branches.ts             PR branch definitions, plus variant branches (e.g. one whose setup needs repair)
   build-fixture-repo.ts   Builds a deterministic git repo with known PR branches
   expected.json           Expected changed files, impact + findings per branch (ExpectedSchema)
-scripts/                  Dev scripts (dataset builder)
+scripts/                  @bdiff/scripts: dev scripts (find-candidates.ts, the dataset candidate finder)
+datasets/                 candidates.json/.md from `pnpm candidates`; the curated dataset.json
 e2e/                      @bdiff/e2e: stage integration and end-to-end tests over the fixture (real git)
 tests/                    Repo-level tooling tests (e.g. package boundaries)
 ```
@@ -184,11 +186,13 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 
 **Batch and stats.** `bdiff batch <dataset.json>` (`packages/cli/src/batch.ts`) runs a zod-validated dataset (`dataset.ts`: id, repo, refs, optional PR number, tags `difficulty`/`prType`/`author`) through `runPipeline`, one or two at a time, each entry isolated, with the entry recorded in `run.json` (`dataset`). An entry is done when a record of it from the same `toolVersion` exists and was not `ABORTED`; a batch refuses to repeat done entries unless `--resume` (skip) or `--force` (rerun). It ends with `report/batch-index.html`. `bdiff stats` (`stats.ts`, pure) reads every `run.json`, counts the latest record per entry, and writes `stats.json` with the experiment's numbers and the epic's success criteria (thresholds in `SUCCESS_THRESHOLDS`); the false-difference criterion counts successful `prType: refactor` runs with findings.
 
+**Dataset candidates.** `pnpm candidates` (`scripts/find-candidates.ts`, modules in `scripts/candidates/`) searches GitHub through `GitHubApi` (Octokit with the throttling and retry plugins, a 30 s timeout per request, GET responses cached for 24 h in `<cache>/github/`, every response validated with zod) for active TypeScript Next.js repositories, then their recently merged PRs of at most 30 files that bdiff would not skip. Classification (`classify.ts`) and ranking (`rank.ts`) are pure and table-tested: `prType` from changed paths, `author` from the login (`[bot]` or `scripts/agent-authors.json`), `difficulty` from repository signals. Each candidate in `datasets/candidates.json` is a dataset entry plus its signals; `--validate` runs only the workspace and recipe stages on each. Tests use a fake `GitHubApi` or a fake transport, never GitHub.
+
 **Metrics.** A run's numbers are accumulated by a `RunRecorder` (stage timings via its `timer`, LLM usage via `recordLlmUsage`, compute seconds, counts) and persisted by `MetricsStore` (`run.json` atomically, one `results.csv` row). LLM cost comes only from `config/pricing.json` through `CostCalculator`; never hardcode a price. `run.json` fields, CSV columns and the pricing rules are documented in `docs/metrics.md`; a test fails if the documented CSV columns drift from the code.
 
 ## Repo tooling conventions
 
-- **Workspace packages** are `@bdiff/core`, `@bdiff/report` and `@bdiff/cli`, linked with `workspace:*`. Shared dev tooling lives in the root `package.json` only.
+- **Workspace packages** are `@bdiff/core`, `@bdiff/report` and `@bdiff/cli`, plus the private `@bdiff/fixtures`, `@bdiff/e2e` and `@bdiff/scripts`, linked with `workspace:*`. Shared dev tooling lives in the root `package.json` only.
 - **Source condition.** Each package's `exports` has a `bdiff-source` condition pointing at `src/index.ts`. TypeScript (`customConditions`), Vitest (`ssr.resolve.conditions`), ESLint's import resolver and tsx (`tsx --conditions=bdiff-source …`) use it, so typecheck, tests and dev runs never need a prior build. Plain Node resolves to `dist/`.
 - **Two tsconfigs per package.** `tsconfig.json` is used by the editor, typecheck and lint, and covers `src/` including tests (`noEmit`). `tsconfig.build.json` is the composite build project: it excludes `*.test.ts`, emits to `dist/` and declares project references to the packages it depends on. The root `tsconfig.json` covers root-level tooling files and `tests/`; `tsconfig.build.json` is the build solution.
 - **Adding a package:** copy an existing package's `package.json`, `tsconfig.json` and `tsconfig.build.json`; add it to the root `tsconfig.build.json` references and to `projects` in `vitest.config.ts`; add ESLint boundary rules if it has import restrictions.

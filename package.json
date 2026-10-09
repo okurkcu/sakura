@@ -19,7 +19,8 @@
     "fixture:build": "tsx --conditions=bdiff-source fixtures/build-fixture-repo.ts",
     "browser:install": "pnpm --filter @bdiff/core exec playwright install --only-shell chromium",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "bdiff": "tsx --conditions=bdiff-source packages/cli/src/main.ts"
+    "bdiff": "tsx --conditions=bdiff-source packages/cli/src/main.ts",
+    "candidates": "tsx --conditions=bdiff-source scripts/find-candidates.ts"
   },
   "devDependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "^4.8.1",

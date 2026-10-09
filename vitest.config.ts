@@ -42,6 +42,14 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: 'scripts',
+          include: ['scripts/*.test.ts', 'scripts/candidates/**/*.test.ts'],
+          exclude: integrationTests,
+        },
+      },
+      {
+        extends: true,
+        test: {
           name: 'tooling',
           include: ['tests/**/*.test.ts'],
           exclude: integrationTests,

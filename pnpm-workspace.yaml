@@ -2,6 +2,7 @@ packages:
   - packages/*
   - fixtures
   - e2e
+  - scripts
 
 allowBuilds:
   esbuild: false
