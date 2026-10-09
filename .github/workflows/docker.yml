@@ -57,6 +57,15 @@ jobs:
       # sandbox needs. bdiff never turns the sandbox off, so allow them on this throwaway runner.
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
+      # Docker Hub limits anonymous pulls per IP, which shared runners hit; pull through Google's
+      # public Docker Hub mirror instead (also for the images compose pulls during runs).
+      - name: Use the mirror.gcr.io Docker Hub mirror
+        run: |
+          config=/etc/docker/daemon.json
+          current=$(sudo cat "$config" 2>/dev/null || echo '{}')
+          echo "$current" | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' | sudo tee "$config" > /dev/null
+          sudo systemctl restart docker
+
       - run: docker pull --quiet node:22
 
       # The e2e suite logs each branch's wall time ("e2e wall time …") to track its speed.
