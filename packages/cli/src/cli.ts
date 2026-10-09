@@ -17,7 +17,6 @@ import {
   createPlaywrightLauncher,
   createRecipeStage,
   createLogger,
-  createStubStages,
   createUiProbeStage,
   createWorkspaceStage,
   DEFAULT_BUDGET_USD,
@@ -97,8 +96,8 @@ export interface CliDeps {
 const REPO_ROOT = path.resolve(import.meta.dirname, '../../..');
 
 /**
- * The real adapters. This is the composition root: the only place that chooses implementations.
- * Stages not implemented yet are stubs; each stage task swaps in its real implementation here.
+ * The real adapters and stages. This is the composition root: the only place that chooses
+ * implementations.
  */
 export function createDefaultCliDeps(env: Readonly<Record<string, string | undefined>>): CliDeps {
   const exec = createExecaExec();
@@ -113,7 +112,6 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
     fs: nodeFileSystem,
     exec,
     createStages: ({ llm }) => ({
-      ...createStubStages(),
       workspace: createWorkspaceStage({ exec, fs: nodeFileSystem, cacheDir: cache, cwd }),
       impact: createImpactStage({ fs: nodeFileSystem, graph: createDependencyCruiserGraph() }),
       recipe: createRecipeStage({ fs: nodeFileSystem, cacheDir: cache, cwd }),

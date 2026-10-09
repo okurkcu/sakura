@@ -6,13 +6,12 @@ import path from 'node:path';
 import {
   abortError,
   BdiffError,
-  createStubStages,
   nodeFileSystem,
   RunRecordSchema,
   systemClock,
 } from '@bdiff/core';
 import type { PipelineStages } from '@bdiff/core';
-import { createTestLogger, FakeExec } from '@bdiff/core/testing';
+import { createStubStages, createTestLogger, FakeExec } from '@bdiff/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EXIT_CODES, runCli } from './cli.js';

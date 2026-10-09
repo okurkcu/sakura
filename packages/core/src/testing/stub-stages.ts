@@ -1,5 +1,5 @@
-import type { PipelineStages } from './pipeline-stages.js';
 import type { Recipe } from '../domain/recipe.js';
+import type { PipelineStages } from '../pipeline/pipeline-stages.js';
 
 const STUB_BASE_SHA = '0'.repeat(40);
 const STUB_HEAD_SHA = '1'.repeat(40);
@@ -24,8 +24,8 @@ export const STUB_RECIPE: Recipe = {
 };
 
 /**
- * Stages that return fixed data without touching anything. They keep the pipeline runnable end to
- * end until each real stage lands; the CLI uses them for every stage not yet implemented.
+ * Stages that return fixed data without touching anything, for tests that run the pipeline with
+ * only some real stages.
  */
 export function createStubStages(): PipelineStages {
   return {

@@ -6,7 +6,6 @@ import {
   createDependencyCruiserGraph,
   createExecaExec,
   createImpactStage,
-  createStubStages,
   createWorkspaceStage,
   ImpactPlanSchema,
   nodeFileSystem,
@@ -17,6 +16,7 @@ import {
 import type { Stage } from '@bdiff/core';
 import {
   createMemoryMetricsStore,
+  createStubStages,
   createTestCostCalculator,
   createTestLogger,
   createTestStageContext,
