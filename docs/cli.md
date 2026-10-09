@@ -128,6 +128,21 @@ It ends with the epic's success criteria, each `PASS`, `FAIL` or `N/A` (not enou
 | `false-differences` | ≤ 10% of the successful runs tagged `prType: refactor` (no behavior change expected) have a finding.         |
 | `hidden-changes`    | At least one run has a finding the interpretation flagged as unexpected for the PR's intent (needs the LLM). |
 
+## `bdiff ui`
+
+Opens the dev panel: a local web page over the runs of a workspace, live while they run. See [panel.md](panel.md).
+
+| Flag                  | Env               | Default  | Meaning                                                                                 |
+| --------------------- | ----------------- | -------- | --------------------------------------------------------------------------------------- |
+| `--port <n>`          |                   | `4317`   | Port on `127.0.0.1` (the panel never listens on other addresses); `0` picks a free one. |
+| `--workspace <dir>`   | `BDIFF_OUT`       | `.bdiff` | Workspace to show.                                                                      |
+| `--demo`              |                   |          | Show the bundled demo data instead: no Docker, no API key, no workspace needed.         |
+| `--no-open`           |                   |          | Do not open the browser.                                                                |
+| `--llm <mode>`        | `BDIFF_LLM`       | see LLM  | LLM mode of the fixture suite when started from the panel, and shown in its sidebar.    |
+| `--log-level <level>` | `BDIFF_LOG_LEVEL` | `warn`   | As for `bdiff run`.                                                                     |
+
+It runs until Ctrl+C (exit 0). The first start builds the web UI (a second or two, again only when its sources change). `pnpm bdiff` reads `.env` when it exists, so a key put there reaches `bdiff ui`, `run` and `batch` without exporting it.
+
 ## Explicit API requests
 
 The API probe sends the same requests to base and head: every static GET endpoint the PR can affect, plus one or two requests per other endpoint (POST, PUT, …) that the LLM (`fast` tier) proposes from the handler's source, labeled `generated` in `run.json` (`apiRequests`). Generating needs `ANTHROPIC_API_KEY` (or an `ant auth login` profile); without credentials, or once `--budget` is spent, those endpoints are listed as not probed and the rest of the run goes on. To send requests of your own, add `bdiff.requests.json` to the app or repository root; they are sent first, in order, and an endpoint they cover gets no generated request:

@@ -28,7 +28,16 @@ pnpm bdiff run https://github.com/<owner>/<repo>/pull/<n>
 pnpm bdiff run --repo <url|path> --base <ref> --head <ref>
 ```
 
-Each run writes `.bdiff/runs/<runId>/report/index.html` and `run.json`; see [docs/cli.md](docs/cli.md).
+Each run writes `.bdiff/runs/<runId>/report/index.html` and `run.json`; see [docs/cli.md](docs/cli.md). Without `ANTHROPIC_API_KEY` the LLM is off (no interpretation); `--llm fake` shows canned answers.
+
+### Dev panel
+
+```bash
+pnpm bdiff ui --demo   # demo data, no Docker or API key needed
+pnpm bdiff ui          # your runs in .bdiff, live while they run
+```
+
+A local page (127.0.0.1 only) with the runs, each run's timeline, API and page changes and interpretation, and the fixture check. See [docs/panel.md](docs/panel.md).
 
 ## Running the experiment in CI
 
@@ -40,5 +49,6 @@ Each run writes `.bdiff/runs/<runId>/report/index.html` and `run.json`; see [doc
 | ----------------- | ---------------------------------------------------------- |
 | `packages/core`   | Engine: domain types, pipeline, stages, adapters.          |
 | `packages/report` | Renders a run result into a self-contained HTML report.    |
+| `packages/panel`  | Dev panel (`bdiff ui`): local web UI over a workspace.     |
 | `packages/cli`    | Command-line entry point; wires real adapters into core.   |
 | `tests`           | Repo-level tooling tests (e.g. package import boundaries). |

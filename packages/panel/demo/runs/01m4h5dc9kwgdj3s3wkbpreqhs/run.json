@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "runId": "01m4h5dc9kwgdj3s3wkbpreqhs",
+  "toolVersion": "a1600304860bc2617b554c74ea606836258fc0ed-dirty",
+  "target": {
+    "repoUrl": "/demo/fixture-repo",
+    "baseRef": "variant/needs-repair",
+    "headRef": "variant/needs-repair-change"
+  },
+  "startedAt": "2026-10-09T20:24:29.235Z",
+  "finishedAt": "2026-10-09T20:25:28.635Z",
+  "durationMs": 59401,
+  "stageTimings": [
+    {
+      "stage": "workspace",
+      "durationMs": 90,
+      "outcome": "success"
+    },
+    {
+      "stage": "impact",
+      "durationMs": 73,
+      "outcome": "success"
+    },
+    {
+      "stage": "recipe",
+      "durationMs": 4,
+      "outcome": "success"
+    },
+    {
+      "stage": "environment",
+      "durationMs": 58616,
+      "outcome": "failed"
+    },
+    {
+      "stage": "repair",
+      "durationMs": 0,
+      "outcome": "skipped"
+    },
+    {
+      "stage": "report",
+      "durationMs": 3,
+      "outcome": "success"
+    }
+  ],
+  "computeSeconds": {
+    "base": 57.1,
+    "head": 58.3
+  },
+  "llmUsage": [],
+  "totals": {
+    "llmCalls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWrite5mTokens": 0,
+    "cacheWrite1hTokens": 0,
+    "llmCostUsd": 0,
+    "computeSeconds": 115.4
+  },
+  "counts": {
+    "routesProbed": 0,
+    "endpointsProbed": 0,
+    "rawDiffs": 0,
+    "noiseDiffs": 0,
+    "findings": 0
+  },
+  "apiRequests": [],
+  "riskLevel": null,
+  "setupAttempts": [],
+  "dataset": null,
+  "findingSummary": {
+    "info": 0,
+    "warning": 0,
+    "breaking": 0,
+    "unexpected": 0
+  },
+  "llmMode": "off",
+  "status": "failed",
+  "failure": {
+    "code": "SETUP_BUILD_FAILED",
+    "stage": "environment",
+    "message": "base: build failed",
+    "details": {
+      "side": "base",
+      "exitCode": 103,
+      "logTail": [
+        "@@bdiff phase toolchain",
+        "@@bdiff phase install",
+        "? Verifying lockfile against supply-chain policies (60 entries)...",
+        "Progress: resolved 28, reused 0, downloaded 2, added 0",
+        "Downloading next@16.4.0: 0.00 B/43.63 MB",
+        "Downloading @img/sharp-libvips-linux-arm64@1.3.4: 0.00 B/8.48 MB",
+        "Downloading @next/swc-linux-arm64-gnu@16.4.0: 0.00 B/32.76 MB",
+        "[WARN] Tarball download average speed 24 KiB/s (size 35 KiB) is below 50 KiB/s: https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz (GET)",
+        "[WARN] Tarball download average speed 2 KiB/s (size 2 KiB) is below 50 KiB/s: https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz (GET)",
+        "[WARN] Tarball download average speed 8 KiB/s (size 17 KiB) is below 50 KiB/s: https://registry.npmjs.org/@img/colour/-/colour-1.1.0.tgz (GET)",
+        "[WARN] Tarball download average speed 18 KiB/s (size 28 KiB) is below 50 KiB/s: https://registry.npmjs.org/semver/-/semver-7.8.5.tgz (GET)",
+        "[WARN] Tarball download average speed 15 KiB/s (size 40 KiB) is below 50 KiB/s: https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.11.27.tgz (GET)",
+        "[WARN] Tarball download average speed 22 KiB/s (size 63 KiB) is below 50 KiB/s: https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.23.tgz (GET)",
+        "Downloading next@16.4.0: 814.26 kB/43.63 MB",
+        "Downloading next@16.4.0: 1.09 MB/43.63 MB",
+        "[WARN] Tarball download average speed 32 KiB/s (size 152 KiB) is below 50 KiB/s: https://registry.npmjs.org/styled-jsx/-/styled-jsx-5.1.6.tgz (GET)",
+        "Downloading next@16.4.0: 1.68 MB/43.63 MB",
+        "Downloading next@16.4.0: 2.02 MB/43.63 MB",
+        "Downloading next@16.4.0: 2.35 MB/43.63 MB",
+        "[WARN] Request took 10870ms: https://registry.npmjs.org/@types%2Fnode",
+        "Downloading @next/swc-linux-arm64-gnu@16.4.0: 3.30 MB/32.76 MB",
+        "[WARN] Request took 11956ms: https://registry.npmjs.org/caniuse-lite",
+        "[WARN] Request took 12156ms: https://registry.npmjs.org/@next%2Fswc-win32-x64-msvc",
+        "[WARN] Request took 12940ms: https://registry.npmjs.org/@next%2Fswc-darwin-x64",
+        "[WARN] Request took 13751ms: https://registry.npmjs.org/typescript",
+        "[WARN] Request took 13879ms: https://registry.npmjs.org/@next%2Fenv",
+        "[WARN] Request took 13989ms: https://registry.npmjs.org/scheduler",
+        "Downloading @next/swc-linux-arm64-gnu@16.4.0: 5.29 MB/32.76 MB",
+        "[WARN] Request took 15941ms: https://registry.npmjs.org/react",
+        "[WARN] Request took 16201ms: https://registry.npmjs.org/next",
+        "[WARN] Request took 16513ms: https://registry.npmjs.org/react-dom",
+        "Downloading next@16.4.0: 5.72 MB/43.63 MB",
+        "Downloading next@16.4.0: 6.46 MB/43.63 MB",
+        "Downloading next@16.4.0: 7.01 MB/43.63 MB",
+        "✓ Lockfile passes supply-chain policies (60 entries in 19.9s)",
+        "Lockfile is up to date, resolution step is skipped",
+        "Downloading next@16.4.0: 8.08 MB/43.63 MB",
+        "Downloading next@16.4.0: 8.93 MB/43.63 MB",
+        "Downloading next@16.4.0: 9.91 MB/43.63 MB",
+        "Downloading next@16.4.0: 11.00 MB/43.63 MB",
+        "Downloading @next/swc-linux-arm64-gnu@16.4.0: 16.11 MB/32.76 MB",
+        "Downloading next@16.4.0: 13.66 MB/43.63 MB",
+        "Downloading next@16.4.0: 14.83 MB/43.63 MB",
+        "Downloading next@16.4.0: 16.40 MB/43.63 MB",
+        "Downloading next@16.4.0: 18.09 MB/43.63 MB",
+        "Downloading next@16.4.0: 19.34 MB/43.63 MB",
+        "Downloading @next/swc-linux-arm64-gnu@16.4.0: 16.80 MB/32.76 MB",
+        "Downloading @next/swc-linux-arm64-gnu@16.4.0: 19.80 MB/32.76 MB",
+        "Downloading next@16.4.0: 23.50 MB/43.63 MB",
+        "Downloading next@16.4.0: 25.00 MB/43.63 MB",
+        "Downloading next@16.4.0: 26.47 MB/43.63 MB",
+        "Downloading next@16.4.0: 27.96 MB/43.63 MB",
+        "Downloading next@16.4.0: 28.89 MB/43.63 MB",
+        "Downloading @next/swc-linux-arm64-gnu@16.4.0: 30.42 MB/32.76 MB",
+        "Downloading next@16.4.0: 32.00 MB/43.63 MB",
+        "Downloading next@16.4.0: 35.09 MB/43.63 MB",
+        "Downloading next@16.4.0: 38.96 MB/43.63 MB",
+        "Downloading next@16.4.0: 42.15 MB/43.63 MB",
+        "Packages are hard linked from the content-addressable store to the virtual store.",
+        "  Content-addressable store is at: /root/.local/share/pnpm/store/v11",
+        "  Virtual store is at:             node_modules/.pnpm",
+        "Packages: +28",
+        "++++++++++++++++++++++++++++",
+        "Progress: resolved 28, reused 0, downloaded 28, added 28, done",
+        "dependencies:",
+        "+ next 16.4.0",
+        "+ react 19.3.0",
+        "+ react-dom 19.3.0",
+        "devDependencies:",
+        "+ @types/node 22.20.5",
+        "+ @types/react 19.3.0",
+        "+ @types/react-dom 19.3.0",
+        "+ typescript 6.0.3",
+        "Done in 43.8s using pnpm v12.9.1",
+        "@@bdiff phase build",
+        "$ next build",
+        "▲ Next.js 16.4.0 (Turbopack)",
+        "⨯ Failed to load next.config.ts, see more info here https://nextjs.org/docs/messages/next-config-error",
+        "> Build error occurred",
+        "Error: SESSION_SECRET is not set (16+ characters); see README \"Setup\"",
+        "    at config (next.config.compiled.js:17:15)",
+        "[ELIFECYCLE] Command failed with exit code 1."
+      ]
+    },
+    "causes": []
+  }
+}

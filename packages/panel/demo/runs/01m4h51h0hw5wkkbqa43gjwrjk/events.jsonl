@@ -1,0 +1,56 @@
+{"type":"run-started","runId":"01m4h51h0hw5wkkbqa43gjwrjk","target":{"repoUrl":"/demo/fixture-repo","baseRef":"main","headRef":"pr/api-breaking"},"toolVersion":"a1600304860bc2617b554c74ea606836258fc0ed-dirty","llmMode":"fake","pid":76903,"at":"2026-10-09T20:18:00.850Z"}
+{"type":"log","level":"info","message":"run started","at":"2026-10-09T20:18:00.850Z"}
+{"type":"log","level":"info","message":"stage started","at":"2026-10-09T20:18:00.850Z"}
+{"type":"stage-started","stage":"workspace","at":"2026-10-09T20:18:00.850Z"}
+{"type":"log","level":"info","message":"repo cache hit","stage":"workspace","at":"2026-10-09T20:18:00.888Z"}
+{"type":"log","level":"info","message":"workspace ready","stage":"workspace","at":"2026-10-09T20:18:00.958Z"}
+{"type":"stage-finished","stage":"workspace","durationMs":108,"status":"success","at":"2026-10-09T20:18:00.958Z"}
+{"type":"log","level":"info","message":"stage finished","at":"2026-10-09T20:18:00.958Z"}
+{"type":"log","level":"info","message":"stage started","at":"2026-10-09T20:18:00.958Z"}
+{"type":"stage-started","stage":"impact","at":"2026-10-09T20:18:00.958Z"}
+{"type":"log","level":"info","message":"impact planned","stage":"impact","at":"2026-10-09T20:18:00.967Z"}
+{"type":"stage-finished","stage":"impact","durationMs":9,"status":"success","at":"2026-10-09T20:18:00.967Z"}
+{"type":"log","level":"info","message":"stage finished","at":"2026-10-09T20:18:00.967Z"}
+{"type":"log","level":"info","message":"stage started","at":"2026-10-09T20:18:00.967Z"}
+{"type":"stage-started","stage":"recipe","at":"2026-10-09T20:18:00.967Z"}
+{"type":"log","level":"info","message":"recipe cache hit","stage":"recipe","at":"2026-10-09T20:18:00.968Z"}
+{"type":"log","level":"info","message":"recipe ready","stage":"recipe","at":"2026-10-09T20:18:00.968Z"}
+{"type":"stage-finished","stage":"recipe","durationMs":1,"status":"success","at":"2026-10-09T20:18:00.968Z"}
+{"type":"log","level":"info","message":"stage finished","at":"2026-10-09T20:18:00.968Z"}
+{"type":"log","level":"info","message":"stage started","at":"2026-10-09T20:18:00.969Z"}
+{"type":"stage-started","stage":"environment","at":"2026-10-09T20:18:00.969Z"}
+{"type":"log","level":"info","message":"containers started; installing and building","stage":"environment","at":"2026-10-09T20:18:01.571Z"}
+{"type":"environment-side","side":"base","status":"started","at":"2026-10-09T20:18:01.571Z"}
+{"type":"environment-side","side":"head","status":"started","at":"2026-10-09T20:18:01.571Z"}
+{"type":"environment-side","side":"base","status":"ready","at":"2026-10-09T20:19:28.311Z"}
+{"type":"environment-side","side":"head","status":"ready","at":"2026-10-09T20:19:30.479Z"}
+{"type":"log","level":"info","message":"environment ready","stage":"environment","at":"2026-10-09T20:19:30.590Z"}
+{"type":"stage-finished","stage":"environment","durationMs":89621,"status":"success","at":"2026-10-09T20:19:30.590Z"}
+{"type":"log","level":"info","message":"stage finished","at":"2026-10-09T20:19:30.590Z"}
+{"type":"log","level":"info","message":"stage started","at":"2026-10-09T20:19:30.590Z"}
+{"type":"stage-started","stage":"probe-ui","at":"2026-10-09T20:19:30.590Z"}
+{"type":"log","level":"info","message":"no pages to capture","stage":"probe-ui","at":"2026-10-09T20:19:30.590Z"}
+{"type":"stage-finished","stage":"probe-ui","durationMs":0,"status":"success","at":"2026-10-09T20:19:30.590Z"}
+{"type":"log","level":"info","message":"stage finished","at":"2026-10-09T20:19:30.590Z"}
+{"type":"log","level":"info","message":"stage started","at":"2026-10-09T20:19:30.590Z"}
+{"type":"stage-started","stage":"probe-api","at":"2026-10-09T20:19:30.590Z"}
+{"type":"log","level":"info","message":"request set built","stage":"probe-api","at":"2026-10-09T20:19:30.591Z"}
+{"type":"log","level":"info","message":"request sent","stage":"probe-api","at":"2026-10-09T20:19:30.598Z"}
+{"type":"log","level":"info","message":"request sent","stage":"probe-api","at":"2026-10-09T20:19:30.601Z"}
+{"type":"log","level":"info","message":"request sent","stage":"probe-api","at":"2026-10-09T20:19:30.606Z"}
+{"type":"stage-finished","stage":"probe-api","durationMs":17,"status":"success","at":"2026-10-09T20:19:30.607Z"}
+{"type":"log","level":"info","message":"stage finished","at":"2026-10-09T20:19:30.607Z"}
+{"type":"log","level":"info","message":"stage started","at":"2026-10-09T20:19:30.607Z"}
+{"type":"stage-started","stage":"diff","at":"2026-10-09T20:19:30.607Z"}
+{"type":"log","level":"info","message":"findings","stage":"diff","at":"2026-10-09T20:19:30.607Z"}
+{"type":"stage-finished","stage":"diff","durationMs":0,"status":"success","at":"2026-10-09T20:19:30.607Z"}
+{"type":"log","level":"info","message":"stage finished","at":"2026-10-09T20:19:30.607Z"}
+{"type":"log","level":"info","message":"stage started","at":"2026-10-09T20:19:30.607Z"}
+{"type":"stage-started","stage":"interpret","at":"2026-10-09T20:19:30.607Z"}
+{"type":"log","level":"info","message":"interpretation","stage":"interpret","at":"2026-10-09T20:19:30.621Z"}
+{"type":"stage-finished","stage":"interpret","durationMs":14,"status":"success","at":"2026-10-09T20:19:30.621Z"}
+{"type":"log","level":"info","message":"stage finished","at":"2026-10-09T20:19:30.621Z"}
+{"type":"log","level":"info","message":"docker compose project removed","stage":"environment","at":"2026-10-09T20:19:31.621Z"}
+{"type":"stage-started","stage":"report","at":"2026-10-09T20:19:31.680Z"}
+{"type":"log","level":"info","message":"report written","stage":"report","at":"2026-10-09T20:19:31.682Z"}
+{"type":"stage-finished","stage":"report","durationMs":2,"status":"success","at":"2026-10-09T20:19:31.682Z"}

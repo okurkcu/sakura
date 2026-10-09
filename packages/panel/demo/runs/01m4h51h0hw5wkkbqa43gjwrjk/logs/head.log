@@ -1,0 +1,152 @@
+@@bdiff phase toolchain
+@@bdiff phase install
+? Verifying lockfile against supply-chain policies (60 entries)...
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 0.00 B/8.48 MB
+Downloading next@16.4.0: 0.00 B/43.63 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 0.00 B/32.76 MB
+[WARN] Tarball download average speed 24 KiB/s (size 25 KiB) is below 50 KiB/s: https://registry.npmjs.org/react/-/react-19.3.0.tgz (GET)
+[WARN] Tarball download average speed 27 KiB/s (size 28 KiB) is below 50 KiB/s: https://registry.npmjs.org/semver/-/semver-7.8.5.tgz (GET)
+[WARN] Tarball download average speed 5 KiB/s (size 5 KiB) is below 50 KiB/s: https://registry.npmjs.org/nanoid/-/nanoid-3.3.20.tgz (GET)
+[WARN] Tarball download average speed 42 KiB/s (size 63 KiB) is below 50 KiB/s: https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.23.tgz (GET)
+[WARN] Tarball download average speed 44 KiB/s (size 75 KiB) is below 50 KiB/s: https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz (GET)
+[WARN] Tarball download average speed 23 KiB/s (size 50 KiB) is below 50 KiB/s: https://registry.npmjs.org/postcss/-/postcss-8.5.23.tgz (GET)
+[WARN] Tarball download average speed 14 KiB/s (size 40 KiB) is below 50 KiB/s: https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.11.27.tgz (GET)
+Downloading next@16.4.0: 942.08 kB/43.63 MB
+Downloading next@16.4.0: 1.41 MB/43.63 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 2.17 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 2.58 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 2.90 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 3.37 MB/32.76 MB
+[WARN] Request took 10622ms: https://registry.npmjs.org/@next%2Fswc-linux-x64-gnu
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 4.32 MB/32.76 MB
+[WARN] Request took 11869ms: https://registry.npmjs.org/@next%2Fswc-win32-arm64-msvc
+Downloading next@16.4.0: 5.06 MB/43.63 MB
+[WARN] Request took 13480ms: https://registry.npmjs.org/react
+[WARN] Request took 13786ms: https://registry.npmjs.org/@next%2Fswc-win32-x64-msvc
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 4.74 MB/8.48 MB
+[WARN] Request took 14869ms: https://registry.npmjs.org/@next%2Fswc-darwin-x64
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 5.78 MB/32.76 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 5.41 MB/8.48 MB
+Downloading next@16.4.0: 6.96 MB/43.63 MB
+Downloading next@16.4.0: 7.37 MB/43.63 MB
+Downloading next@16.4.0: 7.82 MB/43.63 MB
+[WARN] Request took 10907ms: https://registry.npmjs.org/typescript
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 7.05 MB/32.76 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 6.36 MB/8.48 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 6.60 MB/8.48 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 6.88 MB/8.48 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 7.38 MB/8.48 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 7.67 MB/8.48 MB
+[WARN] Request took 28726ms: https://registry.npmjs.org/next
+✓ Lockfile passes supply-chain policies (60 entries in 29s)
+Lockfile is up to date, resolution step is skipped
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 9.70 MB/32.76 MB
+Downloading next@16.4.0: 9.60 MB/43.63 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 10.46 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 10.82 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 11.15 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 11.44 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 11.97 MB/32.76 MB
+Downloading next@16.4.0: 10.64 MB/43.63 MB
+Downloading next@16.4.0: 10.76 MB/43.63 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 13.51 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 13.95 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 14.72 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 15.70 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 16.93 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 18.50 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 20.24 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 21.75 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 23.67 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 25.01 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 26.14 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 27.04 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 27.98 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 29.06 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 30.72 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 32.51 MB/32.76 MB
+Downloading next@16.4.0: 16.64 MB/43.63 MB
+Downloading next@16.4.0: 17.35 MB/43.63 MB
+Downloading next@16.4.0: 17.92 MB/43.63 MB
+Downloading next@16.4.0: 18.46 MB/43.63 MB
+Downloading next@16.4.0: 18.95 MB/43.63 MB
+Downloading next@16.4.0: 19.48 MB/43.63 MB
+Downloading next@16.4.0: 20.41 MB/43.63 MB
+Downloading next@16.4.0: 21.54 MB/43.63 MB
+Downloading next@16.4.0: 23.21 MB/43.63 MB
+Downloading next@16.4.0: 24.37 MB/43.63 MB
+Downloading next@16.4.0: 25.29 MB/43.63 MB
+Downloading next@16.4.0: 26.36 MB/43.63 MB
+Downloading next@16.4.0: 28.01 MB/43.63 MB
+Downloading next@16.4.0: 29.16 MB/43.63 MB
+Downloading next@16.4.0: 30.67 MB/43.63 MB
+Downloading next@16.4.0: 32.45 MB/43.63 MB
+Downloading next@16.4.0: 34.06 MB/43.63 MB
+Downloading next@16.4.0: 35.94 MB/43.63 MB
+Downloading next@16.4.0: 37.85 MB/43.63 MB
+Downloading next@16.4.0: 41.29 MB/43.63 MB
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /root/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Packages: +28
+++++++++++++++++++++++++++++
+Progress: resolved 28, reused 0, downloaded 28, added 28, done
+
+dependencies:
++ next 16.4.0
++ react 19.3.0
++ react-dom 19.3.0
+
+devDependencies:
++ @types/node 22.20.5
++ @types/react 19.3.0
++ @types/react-dom 19.3.0
++ typescript 6.0.3
+
+Done in 1m 17.9s using pnpm v12.9.1
+@@bdiff phase build
+$ next build
+▲ Next.js 16.4.0 (Turbopack)
+✓ Running next.config.ts took 11ms
+⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1732ms
+  Running TypeScript ...
+
+  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+  	- allowJs was set to true
+  	- include was updated to add '.next/dev/types/**/*.ts'
+
+  Finished TypeScript in 1063ms ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/9) ...
+  Generating static pages using 9 workers (2/9) 
+  Generating static pages using 9 workers (4/9) 
+  Generating static pages using 9 workers (6/9) 
+✓ Generating static pages using 9 workers (9/9) in 151ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/feedback
+├ ƒ /api/health
+├ ƒ /api/orders/latest
+├ ƒ /dashboard
+├ ○ /login
+├ ○ /orders
+└ ○ /status
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+@@bdiff phase start
+▲ Next.js 16.4.0
+- Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+✓ Ready in 48ms
+✓ Running next.config.ts took 10ms

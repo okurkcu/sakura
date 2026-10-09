@@ -1,0 +1,325 @@
+<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; img-src &#39;self&#39; file: data:; style-src &#39;unsafe-inline&#39;; script-src &#39;unsafe-inline&#39;" />
+        <title>bdiff · variant/needs-repair-change · failed</title>
+        <style>
+          
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --muted: #59636e;
+  --border: #d1d9e0;
+  --panel: #f6f8fa;
+  --link: #0969da;
+  --breaking: #cf222e;
+  --breaking-bg: #ffebe9;
+  --warning: #9a6700;
+  --warning-bg: #fff8c5;
+  --info: #0969da;
+  --info-bg: #ddf4ff;
+  --ok: #1a7f37;
+  --ok-bg: #dafbe1;
+  --added-bg: #dafbe1;
+  --removed-bg: #ffebe9;
+  --changed-bg: #fff8c5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --fg: #e6edf3;
+    --muted: #9198a1;
+    --border: #3d444d;
+    --panel: #151b23;
+    --link: #4493f8;
+    --breaking: #ff7b72;
+    --breaking-bg: #3c1618;
+    --warning: #d29922;
+    --warning-bg: #3a2e12;
+    --info: #4493f8;
+    --info-bg: #102a4c;
+    --ok: #3fb950;
+    --ok-bg: #12301d;
+    --added-bg: #12301d;
+    --removed-bg: #3c1618;
+    --changed-bg: #3a2e12;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+a { color: var(--link); }
+h1 { font-size: 24px; margin: 0 0 8px; }
+h2 { font-size: 19px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 16px; margin: 20px 0 8px; }
+code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+pre { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 10px; overflow: auto; margin: 8px 0; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 13px; }
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 12px 0; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid currentColor; }
+.badge.breaking, .badge.high, .badge.failed { color: var(--breaking); background: var(--breaking-bg); }
+.badge.warning, .badge.medium, .badge.skipped { color: var(--warning); background: var(--warning-bg); }
+.badge.info { color: var(--info); background: var(--info-bg); }
+.badge.low, .badge.success { color: var(--ok); background: var(--ok-bg); }
+.callout { border: 1px solid var(--border); border-left-width: 4px; border-radius: 6px; padding: 12px 16px; margin: 16px 0; background: var(--panel); }
+.callout.failed { border-left-color: var(--breaking); }
+.callout.skipped { border-left-color: var(--warning); }
+.callout.unexpected { border-left-color: var(--breaking); }
+.summary li { margin: 6px 0; }
+.finding { border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin: 10px 0; }
+.finding:target { outline: 2px solid var(--link); }
+.finding-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.compare { position: relative; display: grid; border: 1px solid var(--border); border-radius: 6px; overflow: auto; max-height: 75vh; background: #fff; }
+.compare > img { grid-area: 1 / 1; width: 100%; height: auto; display: block; }
+.compare > .after { clip-path: inset(0 0 0 var(--split, 50%)); }
+.compare > .overlay { display: none; }
+.ui-route:has(.overlay-toggle:checked) .compare > .overlay { display: block; }
+.ui-route:has(.overlay-toggle:checked) .compare > .after { display: none; }
+.controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 8px 0; font-size: 13px; }
+.controls input[type="range"] { width: 240px; }
+.side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.side-by-side > div { min-width: 0; }
+pre .line { display: block; }
+pre .line.changed { background: var(--changed-bg); }
+pre .line.added { background: var(--added-bg); }
+pre .line.removed { background: var(--removed-bg); }
+@media (max-width: 800px) {
+  .side-by-side { grid-template-columns: 1fr; }
+  main { padding: 16px; }
+}
+
+        </style>
+      </head>
+      <body>
+        <main>
+          <header>
+    <h1>bdiff report <span class="badge failed">failed</span></h1>
+    <dl class="facts">
+      <dt>Repository</dt>
+      <dd class="mono">/demo/fixture-repo</dd>
+      
+      <dt>Base</dt>
+      <dd class="mono">
+        variant/needs-repair @ bced977a62
+      </dd>
+      <dt>Head</dt>
+      <dd class="mono">
+        variant/needs-repair-change @ 3604f62eb6
+      </dd>
+      <dt>Duration</dt>
+      <dd>59 s</dd>
+      <dt>Cost</dt>
+      <dd>
+        LLM $0.0000 · containers
+        115 s
+      </dd>
+      <dt>Run</dt>
+    <dd class="mono">01m4h5dc9kwgdj3s3wkbpreqhs · 2026-10-09T20:24:29.235Z · bdiff a1600304860bc2617b554c74ea606836258fc0ed-dirty</dd>
+        <dt>LLM</dt>
+        <dd>
+          <span class="badge warning">llm off</span> No model was used: the interpretation and setup repair were skipped. Set ANTHROPIC_API_KEY to turn it on.
+        </dd>
+    </dl>
+  </header> <section class="callout failed">
+      <h2>Failed at environment: SETUP_BUILD_FAILED</h2>
+      <p>base: build failed</p>
+      <pre>{
+  &quot;side&quot;: &quot;base&quot;,
+  &quot;exitCode&quot;: 103
+}</pre>
+      <h3>log tail: last 82 lines</h3>
+            <pre>@@bdiff phase toolchain
+@@bdiff phase install
+? Verifying lockfile against supply-chain policies (60 entries)...
+Progress: resolved 28, reused 0, downloaded 2, added 0
+Downloading next@16.4.0: 0.00 B/43.63 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 0.00 B/8.48 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 0.00 B/32.76 MB
+[WARN] Tarball download average speed 24 KiB/s (size 35 KiB) is below 50 KiB/s: https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz (GET)
+[WARN] Tarball download average speed 2 KiB/s (size 2 KiB) is below 50 KiB/s: https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz (GET)
+[WARN] Tarball download average speed 8 KiB/s (size 17 KiB) is below 50 KiB/s: https://registry.npmjs.org/@img/colour/-/colour-1.1.0.tgz (GET)
+[WARN] Tarball download average speed 18 KiB/s (size 28 KiB) is below 50 KiB/s: https://registry.npmjs.org/semver/-/semver-7.8.5.tgz (GET)
+[WARN] Tarball download average speed 15 KiB/s (size 40 KiB) is below 50 KiB/s: https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.11.27.tgz (GET)
+[WARN] Tarball download average speed 22 KiB/s (size 63 KiB) is below 50 KiB/s: https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.23.tgz (GET)
+Downloading next@16.4.0: 814.26 kB/43.63 MB
+Downloading next@16.4.0: 1.09 MB/43.63 MB
+[WARN] Tarball download average speed 32 KiB/s (size 152 KiB) is below 50 KiB/s: https://registry.npmjs.org/styled-jsx/-/styled-jsx-5.1.6.tgz (GET)
+Downloading next@16.4.0: 1.68 MB/43.63 MB
+Downloading next@16.4.0: 2.02 MB/43.63 MB
+Downloading next@16.4.0: 2.35 MB/43.63 MB
+[WARN] Request took 10870ms: https://registry.npmjs.org/@types%2Fnode
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 3.30 MB/32.76 MB
+[WARN] Request took 11956ms: https://registry.npmjs.org/caniuse-lite
+[WARN] Request took 12156ms: https://registry.npmjs.org/@next%2Fswc-win32-x64-msvc
+[WARN] Request took 12940ms: https://registry.npmjs.org/@next%2Fswc-darwin-x64
+[WARN] Request took 13751ms: https://registry.npmjs.org/typescript
+[WARN] Request took 13879ms: https://registry.npmjs.org/@next%2Fenv
+[WARN] Request took 13989ms: https://registry.npmjs.org/scheduler
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 5.29 MB/32.76 MB
+[WARN] Request took 15941ms: https://registry.npmjs.org/react
+[WARN] Request took 16201ms: https://registry.npmjs.org/next
+[WARN] Request took 16513ms: https://registry.npmjs.org/react-dom
+Downloading next@16.4.0: 5.72 MB/43.63 MB
+Downloading next@16.4.0: 6.46 MB/43.63 MB
+Downloading next@16.4.0: 7.01 MB/43.63 MB
+✓ Lockfile passes supply-chain policies (60 entries in 19.9s)
+Lockfile is up to date, resolution step is skipped
+Downloading next@16.4.0: 8.08 MB/43.63 MB
+Downloading next@16.4.0: 8.93 MB/43.63 MB
+Downloading next@16.4.0: 9.91 MB/43.63 MB
+Downloading next@16.4.0: 11.00 MB/43.63 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 16.11 MB/32.76 MB
+Downloading next@16.4.0: 13.66 MB/43.63 MB
+Downloading next@16.4.0: 14.83 MB/43.63 MB
+Downloading next@16.4.0: 16.40 MB/43.63 MB
+Downloading next@16.4.0: 18.09 MB/43.63 MB
+Downloading next@16.4.0: 19.34 MB/43.63 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 16.80 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 19.80 MB/32.76 MB
+Downloading next@16.4.0: 23.50 MB/43.63 MB
+Downloading next@16.4.0: 25.00 MB/43.63 MB
+Downloading next@16.4.0: 26.47 MB/43.63 MB
+Downloading next@16.4.0: 27.96 MB/43.63 MB
+Downloading next@16.4.0: 28.89 MB/43.63 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 30.42 MB/32.76 MB
+Downloading next@16.4.0: 32.00 MB/43.63 MB
+Downloading next@16.4.0: 35.09 MB/43.63 MB
+Downloading next@16.4.0: 38.96 MB/43.63 MB
+Downloading next@16.4.0: 42.15 MB/43.63 MB
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /root/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Packages: +28
+++++++++++++++++++++++++++++
+Progress: resolved 28, reused 0, downloaded 28, added 28, done
+dependencies:
++ next 16.4.0
++ react 19.3.0
++ react-dom 19.3.0
+devDependencies:
++ @types/node 22.20.5
++ @types/react 19.3.0
++ @types/react-dom 19.3.0
++ typescript 6.0.3
+Done in 43.8s using pnpm v12.9.1
+@@bdiff phase build
+$ next build
+▲ Next.js 16.4.0 (Turbopack)
+⨯ Failed to load next.config.ts, see more info here https://nextjs.org/docs/messages/next-config-error
+&gt; Build error occurred
+Error: SESSION_SECRET is not set (16+ characters); see README &quot;Setup&quot;
+    at config (next.config.compiled.js:17:15)
+[ELIFECYCLE] Command failed with exit code 1.</pre>
+    </section> 
+          <section>
+    <h2>Evidence &amp; coverage</h2>
+    <p class="muted">
+      Stages:
+      workspace → impact → recipe → environment (failed) → repair
+    </p>
+    <dl class="facts">
+      <dt>Pages probed</dt>
+      <dd class="mono">—</dd>
+      <dt>Endpoints probed</dt>
+      <dd class="mono">—</dd>
+      <dt>Impact confidence</dt>
+      <dd>high</dd>
+    </dl>
+    <p>Everything the change can affect was probed.</p>
+    
+  </section> 
+            <section>
+    <h2>Details</h2>
+    <h3>Stages</h3>
+    <table>
+      <tr>
+        <th>Stage</th>
+        <th>Outcome</th>
+        <th>Duration</th>
+      </tr>
+      <tr>
+            <td>workspace</td>
+            <td>success</td>
+            <td>90 ms</td>
+          </tr><tr>
+            <td>impact</td>
+            <td>success</td>
+            <td>73 ms</td>
+          </tr><tr>
+            <td>recipe</td>
+            <td>success</td>
+            <td>4 ms</td>
+          </tr><tr>
+            <td>environment</td>
+            <td>failed</td>
+            <td>59 s</td>
+          </tr><tr>
+            <td>repair</td>
+            <td>skipped</td>
+            <td>0 ms</td>
+          </tr>
+    </table>
+    <h3>LLM usage</h3>
+    <p class="muted">No LLM calls.</p>
+    <h3>Recipe</h3>
+            <dl class="facts">
+              <dt>App</dt>
+              <dd class="mono">. (install in .)</dd>
+              <dt>Runtime</dt>
+              <dd>
+                Node 22, pnpm
+                12.9.1
+              </dd>
+              <dt>Install</dt>
+              <dd class="mono">pnpm install --frozen-lockfile</dd>
+              <dt>Build</dt>
+              <dd class="mono">pnpm run build</dd>
+              <dt>Start</dt>
+              <dd class="mono">
+                pnpm exec next start -p 3000 -H 0.0.0.0 (port 3000, health
+                /api/health)
+              </dd>
+              <dt>Services</dt>
+              <dd>
+                none
+              </dd>
+              <dt>Env</dt>
+              <dd class="mono">
+                none
+              </dd>
+              <dt>Confidence</dt>
+              <dd>high</dd>
+            </dl>
+    <h3>Logs</h3>
+            <ul>
+              <li><a href="../logs/base.log">base.log</a></li><li><a href="../logs/head.log">head.log</a></li>
+            </ul>
+  </section>
+        </main>
+        <script>
+          
+document.querySelectorAll('[data-compare]').forEach(function (route) {
+  var slider = route.querySelector('input[type="range"]');
+  var compare = route.querySelector('.compare');
+  if (!slider || !compare) return;
+  function update() { compare.style.setProperty('--split', slider.value + '%'); }
+  slider.addEventListener('input', update);
+  update();
+});
+;
+        </script>
+      </body>
+    </html>

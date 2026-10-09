@@ -1,0 +1,46 @@
+{
+  "probeRun": "baseB",
+  "requestKey": "GET /api/orders/latest",
+  "durationMs": 2.9169999999867287,
+  "artifact": "/demo/.bdiff/runs/01m4h51h0hw5wkkbqa43gjwrjk/api/baseB/get-api-orders-latest-cf7f542f.json",
+  "response": {
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "content-type": "application/json",
+      "vary": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch"
+    },
+    "authRequired": false,
+    "body": {
+      "kind": "json",
+      "json": {
+        "id": "ord_1002",
+        "placedAt": "2026-01-07T14:10:00.000Z",
+        "total": 42.5,
+        "items": [
+          {
+            "sku": "tee-02",
+            "name": "T-shirt",
+            "quantity": 1,
+            "unitPrice": 25
+          },
+          {
+            "sku": "cap-03",
+            "name": "Cap",
+            "quantity": 1,
+            "unitPrice": 17.5
+          }
+        ]
+      },
+      "sha256": "8d33c720c6e373a986b894138f6c6f0bdb8a80a54f5dcf64a9632ee36d4e2f8c"
+    }
+  },
+  "request": {
+    "key": "GET /api/orders/latest",
+    "source": "route",
+    "method": "GET",
+    "path": "/api/orders/latest",
+    "headers": {},
+    "endpoint": "GET /api/orders/latest"
+  }
+}

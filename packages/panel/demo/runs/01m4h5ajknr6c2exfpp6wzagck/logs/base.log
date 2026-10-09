@@ -1,0 +1,134 @@
+@@bdiff phase toolchain
+@@bdiff phase install
+? Verifying lockfile against supply-chain policies (60 entries)...
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 0.00 B/32.76 MB
+Downloading next@16.4.0: 0.00 B/43.63 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 0.00 B/8.48 MB
+[WARN] Tarball download average speed 3 KiB/s (size 4 KiB) is below 50 KiB/s: https://registry.npmjs.org/@next/env/-/env-16.4.0.tgz (GET)
+[WARN] Tarball download average speed 13 KiB/s (size 18 KiB) is below 50 KiB/s: https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz (GET)
+[WARN] Tarball download average speed 10 KiB/s (size 17 KiB) is below 50 KiB/s: https://registry.npmjs.org/@img/colour/-/colour-1.1.0.tgz (GET)
+[WARN] Tarball download average speed 18 KiB/s (size 40 KiB) is below 50 KiB/s: https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.11.27.tgz (GET)
+[WARN] Tarball download average speed 14 KiB/s (size 28 KiB) is below 50 KiB/s: https://registry.npmjs.org/semver/-/semver-7.8.5.tgz (GET)
+[WARN] Tarball download average speed 19 KiB/s (size 25 KiB) is below 50 KiB/s: https://registry.npmjs.org/react/-/react-19.3.0.tgz (GET)
+[WARN] Tarball download average speed 36 KiB/s (size 63 KiB) is below 50 KiB/s: https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.23.tgz (GET)
+[WARN] Tarball download average speed 4 KiB/s (size 9 KiB) is below 50 KiB/s: https://registry.npmjs.org/scheduler/-/scheduler-0.28.0.tgz (GET)
+[WARN] Tarball download average speed 14 KiB/s (size 35 KiB) is below 50 KiB/s: https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz (GET)
+[WARN] Tarball download average speed 41 KiB/s (size 75 KiB) is below 50 KiB/s: https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz (GET)
+Downloading next@16.4.0: 129.85 kB/43.63 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 193.13 kB/8.48 MB
+[WARN] Tarball download average speed 30 KiB/s (size 170 KiB) is below 50 KiB/s: https://registry.npmjs.org/@img/sharp-linux-arm64/-/sharp-linux-arm64-0.35.5.tgz (GET)
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 344.67 kB/8.48 MB
+[WARN] Tarball download average speed 48 KiB/s (size 322 KiB) is below 50 KiB/s: https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001814.tgz (GET)
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 1.97 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 2.17 MB/32.76 MB
+Downloading next@16.4.0: 401.40 kB/43.63 MB
+[WARN] Request took 12271ms: https://registry.npmjs.org/next
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 901.72 kB/8.48 MB
+[WARN] Request took 13880ms: https://registry.npmjs.org/typescript
+Downloading next@16.4.0: 573.44 kB/43.63 MB
+Downloading next@16.4.0: 638.97 kB/43.63 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 1.75 MB/8.48 MB
+[WARN] Request took 18362ms: https://registry.npmjs.org/react
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 6.54 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 7.31 MB/32.76 MB
+[WARN] Request took 21125ms: https://registry.npmjs.org/@types%2Fnode
+Downloading next@16.4.0: 1.44 MB/43.63 MB
+Downloading next@16.4.0: 1.73 MB/43.63 MB
+Downloading next@16.4.0: 2.03 MB/43.63 MB
+Downloading next@16.4.0: 2.37 MB/43.63 MB
+Downloading next@16.4.0: 2.80 MB/43.63 MB
+✓ Lockfile passes supply-chain policies (60 entries in 27s)
+Lockfile is up to date, resolution step is skipped
+Downloading next@16.4.0: 3.40 MB/43.63 MB
+Downloading next@16.4.0: 3.78 MB/43.63 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 6.65 MB/8.48 MB
+Downloading @img/sharp-libvips-linux-arm64@1.3.4: 7.42 MB/8.48 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 21.85 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 23.33 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 24.82 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 26.18 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 27.31 MB/32.76 MB
+Downloading @next/swc-linux-arm64-gnu@16.4.0: 29.38 MB/32.76 MB
+Downloading next@16.4.0: 6.80 MB/43.63 MB
+Downloading next@16.4.0: 7.25 MB/43.63 MB
+Downloading next@16.4.0: 7.91 MB/43.63 MB
+Downloading next@16.4.0: 9.44 MB/43.63 MB
+Downloading next@16.4.0: 11.16 MB/43.63 MB
+Downloading next@16.4.0: 13.08 MB/43.63 MB
+Downloading next@16.4.0: 14.91 MB/43.63 MB
+Downloading next@16.4.0: 17.11 MB/43.63 MB
+Downloading next@16.4.0: 19.10 MB/43.63 MB
+Downloading next@16.4.0: 20.24 MB/43.63 MB
+Downloading next@16.4.0: 22.52 MB/43.63 MB
+Downloading next@16.4.0: 24.29 MB/43.63 MB
+Downloading next@16.4.0: 26.73 MB/43.63 MB
+Downloading next@16.4.0: 29.08 MB/43.63 MB
+Downloading next@16.4.0: 31.93 MB/43.63 MB
+Downloading next@16.4.0: 35.20 MB/43.63 MB
+Downloading next@16.4.0: 38.59 MB/43.63 MB
+Downloading next@16.4.0: 42.42 MB/43.63 MB
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /root/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Packages: +28
+++++++++++++++++++++++++++++
+Progress: resolved 28, reused 0, downloaded 28, added 28, done
+
+dependencies:
++ next 16.4.0
++ react 19.3.0
++ react-dom 19.3.0
+
+devDependencies:
++ @types/node 22.20.5
++ @types/react 19.3.0
++ @types/react-dom 19.3.0
++ typescript 6.0.3
+
+Done in 57.5s using pnpm v12.9.1
+@@bdiff phase build
+$ next build
+▲ Next.js 16.4.0 (Turbopack)
+✓ Running next.config.ts took 11ms
+⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1724ms
+  Running TypeScript ...
+
+  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+  	- allowJs was set to true
+  	- include was updated to add '.next/dev/types/**/*.ts'
+
+  Finished TypeScript in 1102ms ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/9) ...
+  Generating static pages using 9 workers (2/9) 
+  Generating static pages using 9 workers (4/9) 
+  Generating static pages using 9 workers (6/9) 
+✓ Generating static pages using 9 workers (9/9) in 125ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/feedback
+├ ƒ /api/health
+├ ƒ /api/orders/latest
+├ ƒ /dashboard
+├ ○ /login
+├ ○ /orders
+└ ○ /status
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+@@bdiff phase start
+▲ Next.js 16.4.0
+- Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+✓ Ready in 49ms
+✓ Running next.config.ts took 14ms

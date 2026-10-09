@@ -6,28 +6,30 @@ The MVP is a **CLI** that we run against real open-source Next.js PRs to measure
 
 Work is tracked in Jira: project **SKR**, epic **SKR-14**, tasks SKR-15 → SKR-34 (`[01]` … `[20]`), done in order and respecting each task's "Depends on". Run one task with `/work-issue SKR-<n>`.
 
-**Out of scope for the MVP (do not build):** web app, GitHub App, agent/MCP integration, database/performance probes, hosted sandboxes, Rust, dynamic route parameters, authentication flows.
+**Out of scope for the MVP (do not build):** the product web app (the local dev panel, `bdiff ui`, is a developer tool, not that), GitHub App, agent/MCP integration, database/performance probes, hosted sandboxes, Rust, dynamic route parameters, authentication flows.
 
 ## Commands
 
-| Command                          | What it does                                                                                |
-| -------------------------------- | ------------------------------------------------------------------------------------------- |
-| `pnpm install`                   | Install dependencies (Node ≥ 22.12, pnpm via corepack).                                     |
-| `pnpm check`                     | **lint + typecheck + test. Must be green before a task is done.**                           |
-| `pnpm lint`                      | ESLint (zero warnings allowed) and Prettier check.                                          |
-| `pnpm typecheck`                 | `tsc` over root tooling files and every package, tests included.                            |
-| `pnpm test`                      | Vitest, all projects. `pnpm vitest run --project core` for just one.                        |
-| `pnpm test:coverage`             | Vitest with v8 coverage.                                                                    |
-| `pnpm test:docker`               | `*.docker.test.ts` and `*.browser.test.ts`; need Docker and Chromium.                       |
-| `pnpm test:docker --project e2e` | Only the end-to-end suite; `--project integration` runs the other Docker and browser tests. |
-| `pnpm browser:install`           | Installs the Chromium (Playwright headless shell) the UI probe uses.                        |
-| `pnpm bdiff run …`               | Runs the CLI from source; flags and exit codes in `docs/cli.md`.                            |
-| `pnpm bdiff batch <dataset>`     | Runs every PR of a dataset file; `pnpm bdiff stats` aggregates the records (`docs/cli.md`). |
-| `pnpm candidates`                | Finds candidate PRs on GitHub (needs `GITHUB_TOKEN`); see `docs/dataset.md`.                |
-| `pnpm fixture:dataset [dir]`     | Builds the fixture repo and a `dataset.json` of its PR branches, for `bdiff batch`.         |
-| `pnpm fixture:build`             | Builds the fixture git repo in a temp dir and prints its path.                              |
-| `pnpm build`                     | `tsc -b tsconfig.build.json` (project references) into `dist/`.                             |
-| `pnpm format`                    | Prettier write.                                                                             |
+| Command                                  | What it does                                                                                |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `pnpm install`                           | Install dependencies (Node ≥ 22.12, pnpm via corepack).                                     |
+| `pnpm check`                             | **lint + typecheck + test. Must be green before a task is done.**                           |
+| `pnpm lint`                              | ESLint (zero warnings allowed) and Prettier check.                                          |
+| `pnpm typecheck`                         | `tsc` over root tooling files and every package, tests included.                            |
+| `pnpm test`                              | Vitest, all projects. `pnpm vitest run --project core` for just one.                        |
+| `pnpm test:coverage`                     | Vitest with v8 coverage.                                                                    |
+| `pnpm test:docker`                       | `*.docker.test.ts` and `*.browser.test.ts`; need Docker and Chromium.                       |
+| `pnpm test:docker --project e2e`         | Only the end-to-end suite; `--project integration` runs the other Docker and browser tests. |
+| `pnpm browser:install`                   | Installs the Chromium (Playwright headless shell) the UI probe uses.                        |
+| `pnpm bdiff run …`                       | Runs the CLI from source; flags and exit codes in `docs/cli.md`.                            |
+| `pnpm bdiff batch <dataset>`             | Runs every PR of a dataset file; `pnpm bdiff stats` aggregates the records (`docs/cli.md`). |
+| `pnpm bdiff ui [--demo]`                 | Dev panel on 127.0.0.1: live runs, run detail, fixture check (`docs/panel.md`).             |
+| `pnpm candidates`                        | Finds candidate PRs on GitHub (needs `GITHUB_TOKEN`); see `docs/dataset.md`.                |
+| `pnpm panel:demo <ws> --live <id> <id>…` | Copies real runs into the panel's demo data (`docs/panel.md`).                              |
+| `pnpm fixture:dataset [dir]`             | Builds the fixture repo and a `dataset.json` of its PR branches, for `bdiff batch`.         |
+| `pnpm fixture:build`                     | Builds the fixture git repo in a temp dir and prints its path.                              |
+| `pnpm build`                             | `tsc -b tsconfig.build.json` (project references) into `dist/`.                             |
+| `pnpm format`                            | Prettier write.                                                                             |
 
 ## Architecture
 
@@ -36,7 +38,8 @@ packages/
   core/      Engine. Domain types, pipeline, stages, adapters behind interfaces.
              MUST NOT import from cli/ or report/ (enforced by ESLint).
   report/    Renders a RunResult into static, self-contained HTML. Depends only on core types.
-  cli/       commander entry point. The ONLY composition root: builds real adapters, injects them into core.
+  panel/     Dev panel (`bdiff ui`): Node http server (src/) + Preact UI (web/, built with Vite). Depends only on core.
+  cli/       commander entry point. The ONLY composition root: builds real adapters, injects them into core and panel.
 fixtures/                 @bdiff/fixtures workspace package
   sample-next-app/        Small Next.js app (ground truth); its own project, not linted by us
   branches/<name>/        Files each PR branch adds or replaces on top of main
@@ -185,6 +188,12 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 
 **Report.** `@bdiff/report` renders a `RunResult` into one self-contained page (`report/index.html`): header, summary, evidence and coverage, UI changes (before/after slider, overlay toggle, text diff), API changes (side-by-side JSON with the changed paths highlighted), runtime signals, details; a failed or skipped run starts with why, and setup failures show the last log lines. Templates use the `html` tagged template, which **escapes every interpolated value**; only the report's own CSS and script go through `raw`. The page loads nothing from the network (no remote URLs, plus a restrictive CSP meta tag) and links run files by relative path, never anything outside the run directory. Rendering is pure and deterministic; tests compare the three run states against HTML file snapshots (`__snapshots__/*.html`, ignored by Prettier) that can be opened in a browser. `batchIndexHtml` renders the table of a batch of runs. Prettier formats `html` templates as HTML: keep whitespace out of `<pre>` content.
 
+**LLM modes.** `--llm on|off|fake` (`resolveLlmMode`: default `on` with `ANTHROPIC_API_KEY`, else `off` with a notice), recorded as `llmMode` in `run.json`. `off`: the CLI passes `createOffLlmClient` (every call `LLM_UNAVAILABLE`), and the orchestrator skips interpret and the repair loop (a `skipped` stage timing and event); generated API requests are not probed; the run can succeed. `fake`: `createCannedLlmClient` (`llm/mode-clients.ts`, production code, unlike `FakeLlmClient`) answers interpret and API request calls with deterministic `[fake]` texts, no cost; repair is skipped. Stats count only `on` runs for hidden changes. `pnpm bdiff` loads `.env` if present.
+
+**Run events.** The orchestrator appends `runs/<id>/events.jsonl` (`RunEventSchema`, `events/`): run and stage start/finish/failure, `log` lines (info and above, through `teeLoggerToEvents`), and what stages report with `ctx.progress` (`capture` from probe-ui, `environment-side` from environment). Writes are serialized, one append per event, and a write failure is logged once and never fails the run. It also writes `result.json` (the `RunResult`) before `run.json`. Both feed the dev panel.
+
+**Dev panel.** `bdiff ui` (`packages/panel`, `docs/panel.md`) serves a JSON API, SSE (`/api/runs/:id/events`, tails `events.jsonl`) and run files over a `RunSource` (`createWorkspaceRunSource`, or `createDemoRunSource` for `--demo`: `packages/panel/demo/`, refreshed with `pnpm panel:demo`). It listens on `127.0.0.1` only, checks `Host` and the `Origin` of POSTs, resolves file paths with `resolveRunFile` (no `..`, absolute paths or backslashes) and serves only known types. The UI renders untrusted text as text (never `dangerouslySetInnerHTML`), loads nothing remote, and imports server code only from `src/api.ts`, `src/paths.ts` and `src/stages.ts` (type-only or pure). The CLI injects every side effect (`PanelServices`, Docker probe, suite runner: `bdiff batch` as a child process, cancelled with SIGINT through `Exec`'s `stopSignal`). Tests: server over real `127.0.0.1` with a memory file system (`createMemoryFileSystem`), UI components with `preact-render-to-string`, and `panel.browser.test.ts` (Playwright against `--demo`).
+
 **LLM calls.** Every call goes through `LlmClient.complete(request, ctx)` (`packages/core/src/llm`); stages pass their `StageContext` as `ctx`. The client checks the budget before every request (retries included), records every attempt's usage, sends the zod schema as the structured output format, validates the answer with zod and retries once with the validation problem before `LLM_INVALID_OUTPUT`. Refusals become `LLM_REFUSED`; branch on errors, never read content of a refused response. Models, effort and server-side fallback per tier live in `config/llm.json`; every model a tier or its fallback can use must be in `config/pricing.json`. Never send `temperature`, `top_p`, `top_k` or an assistant prefill (current models reject them). Prompts live in `packages/core/src/llm/prompts/*.ts` as typed functions; keep run-specific data out of `system` so it stays cacheable. Tests use `FakeLlmClient` from `@bdiff/core/testing`, or `createAnthropicLlmClient({ fetch })` with a fake transport: never the real API.
 
 **Batch and stats.** `bdiff batch <dataset.json>` (`packages/cli/src/batch.ts`) runs a zod-validated dataset (`dataset.ts`: id, repo, refs, optional PR number, tags `difficulty`/`prType`/`author`) through `runPipeline`, one or two at a time, each entry isolated, with the entry recorded in `run.json` (`dataset`). An entry is done when a record of it from the same `toolVersion` exists and was not `ABORTED`; a batch refuses to repeat done entries unless `--resume` (skip) or `--force` (rerun). It ends with `report/batch-index.html`; `--shard i/n` (`shardEntries`, round robin) splits it across machines, which `.github/workflows/batch.yml` does (`docs/ci.md`). `bdiff stats` (`stats.ts`, pure) reads every `run.json`, counts the latest record per entry, and writes `stats.json` with the experiment's numbers and the epic's success criteria (thresholds in `SUCCESS_THRESHOLDS`); the false-difference criterion counts successful `prType: refactor` runs with findings.
@@ -195,7 +204,7 @@ All paths come from the typed `ArtifactPaths` helper (`createArtifactPaths(root,
 
 ## Repo tooling conventions
 
-- **Workspace packages** are `@bdiff/core`, `@bdiff/report` and `@bdiff/cli`, plus the private `@bdiff/fixtures`, `@bdiff/e2e` and `@bdiff/scripts`, linked with `workspace:*`. Shared dev tooling lives in the root `package.json` only.
+- **Workspace packages** are `@bdiff/core`, `@bdiff/report`, `@bdiff/panel` and `@bdiff/cli`, plus the private `@bdiff/fixtures`, `@bdiff/e2e` and `@bdiff/scripts`, linked with `workspace:*`. Shared dev tooling lives in the root `package.json` only.
 - **Source condition.** Each package's `exports` has a `bdiff-source` condition pointing at `src/index.ts`. TypeScript (`customConditions`), Vitest (`ssr.resolve.conditions`), ESLint's import resolver and tsx (`tsx --conditions=bdiff-source …`) use it, so typecheck, tests and dev runs never need a prior build. Plain Node resolves to `dist/`.
 - **Two tsconfigs per package.** `tsconfig.json` is used by the editor, typecheck and lint, and covers `src/` including tests (`noEmit`). `tsconfig.build.json` is the composite build project: it excludes `*.test.ts`, emits to `dist/` and declares project references to the packages it depends on. The root `tsconfig.json` covers root-level tooling files and `tests/`; `tsconfig.build.json` is the build solution.
 - **Adding a package:** copy an existing package's `package.json`, `tsconfig.json` and `tsconfig.build.json`; add it to the root `tsconfig.build.json` references and to `projects` in `vitest.config.ts`; add ESLint boundary rules if it has import restrictions.

@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "runId": "01m4h51h0hw5wkkbqa43gjwrjk",
+  "toolVersion": "a1600304860bc2617b554c74ea606836258fc0ed-dirty",
+  "target": {
+    "repoUrl": "/demo/fixture-repo",
+    "baseRef": "main",
+    "headRef": "pr/api-breaking"
+  },
+  "startedAt": "2026-10-09T20:18:00.850Z",
+  "finishedAt": "2026-10-09T20:19:31.682Z",
+  "durationMs": 90833,
+  "stageTimings": [
+    {
+      "stage": "workspace",
+      "durationMs": 108,
+      "outcome": "success"
+    },
+    {
+      "stage": "impact",
+      "durationMs": 9,
+      "outcome": "success"
+    },
+    {
+      "stage": "recipe",
+      "durationMs": 1,
+      "outcome": "success"
+    },
+    {
+      "stage": "environment",
+      "durationMs": 89621,
+      "outcome": "success"
+    },
+    {
+      "stage": "probe-ui",
+      "durationMs": 0,
+      "outcome": "success"
+    },
+    {
+      "stage": "probe-api",
+      "durationMs": 17,
+      "outcome": "success"
+    },
+    {
+      "stage": "diff",
+      "durationMs": 0,
+      "outcome": "success"
+    },
+    {
+      "stage": "interpret",
+      "durationMs": 14,
+      "outcome": "success"
+    },
+    {
+      "stage": "report",
+      "durationMs": 2,
+      "outcome": "success"
+    }
+  ],
+  "computeSeconds": {
+    "base": 89.2,
+    "head": 89.3
+  },
+  "llmUsage": [],
+  "totals": {
+    "llmCalls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWrite5mTokens": 0,
+    "cacheWrite1hTokens": 0,
+    "llmCostUsd": 0,
+    "computeSeconds": 178.5
+  },
+  "counts": {
+    "routesProbed": 0,
+    "endpointsProbed": 1,
+    "rawDiffs": 2,
+    "noiseDiffs": 0,
+    "findings": 2
+  },
+  "apiRequests": [
+    {
+      "key": "GET /api/orders/latest",
+      "source": "route",
+      "method": "GET",
+      "path": "/api/orders/latest",
+      "headers": {},
+      "endpoint": "GET /api/orders/latest"
+    }
+  ],
+  "riskLevel": "high",
+  "setupAttempts": [],
+  "dataset": {
+    "id": "api-breaking",
+    "tags": {
+      "difficulty": "easy",
+      "prType": "api",
+      "author": "human"
+    }
+  },
+  "findingSummary": {
+    "info": 0,
+    "warning": 1,
+    "breaking": 1,
+    "unexpected": 1
+  },
+  "llmMode": "fake",
+  "status": "success"
+}

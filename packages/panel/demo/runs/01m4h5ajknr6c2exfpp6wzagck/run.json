@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "runId": "01m4h5ajknr6c2exfpp6wzagck",
+  "toolVersion": "a1600304860bc2617b554c74ea606836258fc0ed-dirty",
+  "target": {
+    "repoUrl": "/demo/fixture-repo",
+    "baseRef": "main",
+    "headRef": "pr/ui-change"
+  },
+  "startedAt": "2026-10-09T20:22:57.397Z",
+  "finishedAt": "2026-10-09T20:24:18.376Z",
+  "durationMs": 80980,
+  "stageTimings": [
+    {
+      "stage": "workspace",
+      "durationMs": 90,
+      "outcome": "success"
+    },
+    {
+      "stage": "impact",
+      "durationMs": 71,
+      "outcome": "success"
+    },
+    {
+      "stage": "recipe",
+      "durationMs": 2,
+      "outcome": "success"
+    },
+    {
+      "stage": "environment",
+      "durationMs": 76011,
+      "outcome": "success"
+    },
+    {
+      "stage": "probe-ui",
+      "durationMs": 3650,
+      "outcome": "success"
+    },
+    {
+      "stage": "probe-api",
+      "durationMs": 0,
+      "outcome": "success"
+    },
+    {
+      "stage": "diff",
+      "durationMs": 112,
+      "outcome": "success"
+    },
+    {
+      "stage": "interpret",
+      "durationMs": 14,
+      "outcome": "success"
+    },
+    {
+      "stage": "report",
+      "durationMs": 3,
+      "outcome": "success"
+    }
+  ],
+  "computeSeconds": {
+    "base": 79.5,
+    "head": 79.4
+  },
+  "llmUsage": [],
+  "totals": {
+    "llmCalls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWrite5mTokens": 0,
+    "cacheWrite1hTokens": 0,
+    "llmCostUsd": 0,
+    "computeSeconds": 158.9
+  },
+  "counts": {
+    "routesProbed": 1,
+    "endpointsProbed": 0,
+    "rawDiffs": 4,
+    "noiseDiffs": 0,
+    "findings": 2
+  },
+  "apiRequests": [],
+  "riskLevel": "low",
+  "setupAttempts": [],
+  "dataset": {
+    "id": "ui-change",
+    "tags": {
+      "difficulty": "easy",
+      "prType": "ui",
+      "author": "human"
+    }
+  },
+  "findingSummary": {
+    "info": 2,
+    "warning": 0,
+    "breaking": 0,
+    "unexpected": 0
+  },
+  "llmMode": "fake",
+  "status": "success"
+}
