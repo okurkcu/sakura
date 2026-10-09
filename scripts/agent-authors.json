@@ -1,0 +1,4 @@
+{
+  "description": "GitHub logins of coding agents that open pull requests without a [bot] suffix. Logins ending in [bot] count as agents anyway. Edit freely.",
+  "logins": ["Copilot", "copilot-swe-agent", "devin-ai-integration", "openhands-agent"]
+}
