@@ -170,7 +170,8 @@ describe('bdiff binary', () => {
     const run = spawnTs(mainScript, ['run', '--repo', 'x']);
 
     expect(await run.exitCode).toBe(2);
-    expect(run.stderr()).toContain("required option '--base <ref>' not specified");
+    // A pull request URL can replace --repo, --base and --head, so bdiff (not commander) asks.
+    expect(run.stderr()).toContain('--base is required');
   });
 
   it.each(['SIGINT', 'SIGTERM'] as const)(

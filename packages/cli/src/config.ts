@@ -5,6 +5,8 @@ import { z } from 'zod';
 import type { BatchMode, Shard } from './batch.js';
 import { DATASET_TAG_NAMES, parseTagFilters } from './dataset.js';
 import type { DatasetTagName, TagFilter } from './dataset.js';
+import { parsePullRequestUrl } from './pr-url.js';
+import type { PullRequestRef } from './pr-url.js';
 
 /** Log levels accepted by `--log-level`. */
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const satisfies readonly LogLevel[];
@@ -35,11 +37,22 @@ export interface RunFlags {
   readonly timeout?: string;
   readonly budget?: string;
   readonly logLevel?: string;
+  /** The positional `<pr-url>`. */
+  readonly prUrl?: string;
 }
 
 /** A validated `bdiff run` configuration. */
-export interface RunConfig {
-  readonly target: Target;
+export type RunConfig = RunOptions &
+  (
+    | { readonly target: Target }
+    | {
+        /** `bdiff run <pr-url>`: the target is resolved from GitHub when the run starts. */
+        readonly pullRequest: PullRequestRef;
+      }
+  );
+
+/** The options of a run besides what it compares. */
+export interface RunOptions {
   readonly outDir: string;
   readonly timeoutMs: number;
   readonly budgetUsd: number;
@@ -240,7 +253,7 @@ function parseCommon(
   flags: Pick<RunFlags, 'out' | 'timeout' | 'budget' | 'logLevel'>,
   env: Readonly<Record<string, string | undefined>>,
   problems: string[],
-): Pick<RunConfig, 'outDir' | 'timeoutMs' | 'budgetUsd' | 'logLevel'> | undefined {
+): RunOptions | undefined {
   const parsed = RawCommonSchema.safeParse({
     out: flags.out ?? env[RUN_ENV.outDir] ?? RUN_DEFAULTS.outDir,
     timeout: flags.timeout ?? env[RUN_ENV.timeoutMinutes] ?? String(RUN_DEFAULTS.timeoutMinutes),
@@ -268,6 +281,9 @@ export function parseRunConfig(
   flags: RunFlags,
   env: Readonly<Record<string, string | undefined>>,
 ): RunConfig {
+  if (flags.prUrl !== undefined) {
+    return parsePullRequestRun(flags.prUrl, flags, env);
+  }
   const raw = {
     repo: flags.repo,
     base: flags.base,
@@ -300,6 +316,34 @@ export function parseRunConfig(
     budgetUsd: budget,
     logLevel,
   };
+}
+
+/** `bdiff run <pr-url>`: the URL, alone, and the shared options. */
+function parsePullRequestRun(
+  url: string,
+  flags: RunFlags,
+  env: Readonly<Record<string, string | undefined>>,
+): RunConfig {
+  const problems: string[] = [];
+  const mixed = (['repo', 'base', 'head', 'pr'] as const).filter(
+    (flag) => flags[flag] !== undefined,
+  );
+  if (mixed.length > 0) {
+    problems.push(
+      `a pull request URL cannot be combined with ${mixed.map((flag) => `--${flag}`).join(', ')}; give either the URL or --repo, --base and --head`,
+    );
+  }
+  const pullRequest = parsePullRequestUrl(url);
+  if (pullRequest === undefined) {
+    problems.push(
+      `"${url}" is not a GitHub pull request URL (https://github.com/<owner>/<repo>/pull/<number>)`,
+    );
+  }
+  const options = parseCommon(flags, env, problems);
+  if (problems.length > 0 || pullRequest === undefined || options === undefined) {
+    throw usageError(problems);
+  }
+  return { ...options, pullRequest };
 }
 
 function usageError(problems: readonly string[]): BdiffError {

@@ -42,7 +42,9 @@ import type {
   Logger,
   LogLevel,
   PipelineStages,
+  PullRequestSource,
   RunResult,
+  Target,
 } from '@bdiff/core';
 import { createReportStage } from '@bdiff/report';
 import { Command, CommanderError } from 'commander';
@@ -58,6 +60,7 @@ import {
 } from './config.js';
 import type { BatchFlags, RunFlags, StatsFlags } from './config.js';
 import { DATASET_TAG_NAMES, loadDataset, selectEntries } from './dataset.js';
+import { resolvePullRequestTarget, unresolvedPullRequestTarget } from './pr-url.js';
 import { readRunRecords } from './run-records.js';
 import { formatStats, formatStatsMarkdown } from './stats-text.js';
 import { computeStats, countedRecords } from './stats.js';
@@ -109,6 +112,8 @@ export interface CliDeps {
   readonly llmConfigPath: string;
   /** Base for relative paths such as `--out`. */
   readonly cwd: string;
+  /** Resolves `bdiff run <pr-url>`; GitHub in production. */
+  readonly pullRequests: PullRequestSource;
 }
 
 /** Root of the bdiff checkout (`packages/cli/{src,dist}/` → `../../..`). */
@@ -143,6 +148,7 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
       report: createReportStage({ fs: nodeFileSystem }),
     }),
     createLogger: (level) => createLogger({ level }),
+    pullRequests: github,
     pricingPath: env.BDIFF_PRICING ?? path.join(REPO_ROOT, 'config', 'pricing.json'),
     llmConfigPath: path.join(REPO_ROOT, 'config', 'llm.json'),
     cwd,
@@ -185,17 +191,23 @@ export async function runCli(
   const logLevelOption = `debug, info, warn or error (env ${RUN_ENV.logLevel})`;
   program
     .command('run')
-    .description('Compare the behavior of a base and a head ref of a repository.')
-    .requiredOption('--repo <url|path>', 'repository URL or local path')
-    .requiredOption('--base <ref>', 'base ref')
-    .requiredOption('--head <ref>', 'head ref')
+    .description(
+      'Compare the behavior of a base and a head ref of a repository, or of a GitHub pull request.',
+    )
+    .argument('[pr-url]', 'a GitHub pull request URL, instead of --repo, --base, --head and --pr')
+    .option('--repo <url|path>', 'repository URL or local path')
+    .option('--base <ref>', 'base ref')
+    .option('--head <ref>', 'head ref')
     .option('--pr <number>', 'pull request number')
     .option('--out <dir>', outOption)
     .option('--timeout <minutes>', timeoutOption)
     .option('--budget <usd>', budgetOption)
     .option('--log-level <level>', logLevelOption)
-    .action((flags: RunFlags) => {
-      command = { name: 'run', flags };
+    .action((prUrl: string | undefined, flags: RunFlags) => {
+      command = {
+        name: 'run',
+        flags: prUrl === undefined ? flags : { ...flags, prUrl },
+      };
     });
   program
     .command('batch')
@@ -332,21 +344,43 @@ async function run(flags: RunFlags, io: CliIo, deps: CliDeps): Promise<number> {
   }
   return withSession(io, deps, config.logLevel, async (session) => {
     const outDir = path.resolve(deps.cwd, config.outDir);
-    const { result, runJsonPath } = await runPipeline(
-      config.target,
-      deps.createStages({ llm: session.llm }),
-      {
-        clock: deps.clock,
-        fs: deps.fs,
-        logger: session.logger,
-        costs: session.costs,
-        outDir,
-        toolVersion: session.toolVersion,
-        timeoutMs: config.timeoutMs,
-        budgetUsd: config.budgetUsd,
-        signal: session.signal,
-      },
-    );
+    let target: Target;
+    let stages = deps.createStages({ llm: session.llm });
+    if ('target' in config) {
+      target = config.target;
+    } else {
+      try {
+        target = await resolvePullRequestTarget(
+          config.pullRequest,
+          deps.pullRequests,
+          session.signal,
+        );
+        session.logger.info('pull request resolved', {
+          repoUrl: target.repoUrl,
+          baseRef: target.baseRef,
+          headRef: target.headRef,
+        });
+      } catch (error) {
+        // Record and report it like any failed run: as the workspace stage, which needs the PR.
+        const failure = error instanceof Error ? error : new Error(String(error));
+        target = unresolvedPullRequestTarget(config.pullRequest);
+        stages = {
+          ...stages,
+          workspace: { name: 'workspace', run: () => Promise.reject(failure) },
+        };
+      }
+    }
+    const { result, runJsonPath } = await runPipeline(target, stages, {
+      clock: deps.clock,
+      fs: deps.fs,
+      logger: session.logger,
+      costs: session.costs,
+      outDir,
+      toolVersion: session.toolVersion,
+      timeoutMs: config.timeoutMs,
+      budgetUsd: config.budgetUsd,
+      signal: session.signal,
+    });
     const reportPath = createArtifactPaths(outDir, result.record.runId).reportHtml;
     io.stdout.write(
       summarize(result, {

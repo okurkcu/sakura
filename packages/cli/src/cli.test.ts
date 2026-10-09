@@ -11,7 +11,14 @@ import {
   RunRecordSchema,
   systemClock,
 } from '@bdiff/core';
-import type { Finding, PipelineStages, RunOutcome, Severity } from '@bdiff/core';
+import type {
+  Finding,
+  PipelineStages,
+  PullRequest,
+  PullRequestSource,
+  RunOutcome,
+  Severity,
+} from '@bdiff/core';
 import {
   createStubStages,
   createTestLogger,
@@ -37,7 +44,29 @@ const runArgs = [
   'pr/1',
 ];
 
-function harness(cwd: string, stages: PipelineStages = createStubStages()) {
+/** A pull request source that answers from a table, or fails like GitHub would. */
+function fakePullRequests(
+  answers: Record<string, PullRequest | Error> = {},
+): PullRequestSource & { calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    resolvePullRequest: (repo, number) => {
+      const key = `${repo.owner}/${repo.name}#${String(number)}`;
+      calls.push(key);
+      const answer =
+        answers[key] ??
+        new BdiffError('PR_NOT_FOUND', `GitHub has no pull request ${key}, or it is private`);
+      return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer);
+    },
+  };
+}
+
+function harness(
+  cwd: string,
+  stages: PipelineStages = createStubStages(),
+  pullRequests: PullRequestSource = fakePullRequests(),
+) {
   let stdout = '';
   let stderr = '';
   const signals = new EventEmitter();
@@ -58,6 +87,7 @@ function harness(cwd: string, stages: PipelineStages = createStubStages()) {
     pricingPath,
     llmConfigPath,
     cwd,
+    pullRequests,
   };
   return {
     io,
@@ -300,6 +330,121 @@ describe('runCli', () => {
 
     expect(code).toBe(EXIT_CODES.failed);
     expect(h.output().stderr).toMatch(/could not be recorded.*unpriced-model/);
+    expect(await nodeFileSystem.exists(path.join(cwd, '.bdiff'))).toBe(false);
+  });
+});
+
+describe('runCli with a pull request URL', () => {
+  let cwd: string;
+
+  beforeEach(async () => {
+    cwd = await mkdtemp(path.join(tmpdir(), 'bdiff-cli-pr-'));
+  });
+
+  afterEach(async () => {
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  const openPr: PullRequest = {
+    title: 'Format the latest order total',
+    body: 'Clients asked for a currency.',
+    state: 'open',
+    merged: false,
+    base: { ref: 'main', sha: 'a'.repeat(40), repo: 'acme/shop' },
+    head: { ref: 'format-total', sha: 'b'.repeat(40), repo: 'acme/shop' },
+  };
+
+  it('resolves the pull request and records it as the target', async () => {
+    const source = fakePullRequests({ 'acme/shop#7': openPr });
+    const h = harness(cwd, createStubStages(), source);
+
+    const code = await runCli(
+      ['run', 'https://github.com/acme/shop/pull/7/files?diff=split'],
+      h.io,
+      h.deps,
+    );
+
+    expect(code).toBe(EXIT_CODES.success);
+    expect(source.calls).toEqual(['acme/shop#7']);
+    expect((await readOnlyRecord(path.join(cwd, '.bdiff'))).target).toEqual({
+      repoUrl: 'https://github.com/acme/shop',
+      baseRef: 'main',
+      headRef: 'format-total',
+      prNumber: 7,
+      prTitle: 'Format the latest order total',
+      prBody: 'Clients asked for a currency.',
+    });
+  });
+
+  it.each([
+    [
+      'not found',
+      undefined,
+      'PR_NOT_FOUND',
+      'GitHub has no pull request acme/shop#404, or it is private',
+    ],
+    [
+      'rate limited',
+      new BdiffError(
+        'HTTP_FAILED',
+        'GitHub rate limit reached while reading pull request acme/shop#404; set GITHUB_TOKEN to raise the limit',
+        { details: { status: 403, rateLimited: true } },
+      ),
+      'HTTP_FAILED',
+      'set GITHUB_TOKEN',
+    ],
+  ])(
+    'records a pull request GitHub cannot resolve (%s) and exits 1',
+    async (_name, failure, code, message) => {
+      const source = fakePullRequests(failure === undefined ? {} : { 'acme/shop#404': failure });
+      const h = harness(cwd, createStubStages(), source);
+
+      expect(await runCli(['run', 'https://github.com/acme/shop/pull/404'], h.io, h.deps)).toBe(
+        EXIT_CODES.failed,
+      );
+
+      const record = await readOnlyRecord(path.join(cwd, '.bdiff'));
+      expect(record).toMatchObject({
+        status: 'failed',
+        failure: { code, stage: 'workspace' },
+        target: {
+          repoUrl: 'https://github.com/acme/shop',
+          headRef: 'refs/pull/404/head',
+          prNumber: 404,
+        },
+      });
+      expect(h.output().stdout).toContain(message);
+    },
+  );
+
+  it.each([
+    {
+      name: 'a URL plus --repo and --pr',
+      argv: ['run', 'https://github.com/acme/shop/pull/7', '--repo', 'x', '--pr', '7'],
+      message: /cannot be combined with --repo, --pr/,
+    },
+    {
+      name: 'an issue URL',
+      argv: ['run', 'https://github.com/acme/shop/issues/7'],
+      message: /is not a GitHub pull request URL/,
+    },
+    {
+      name: 'a GitLab merge request',
+      argv: ['run', 'https://gitlab.com/acme/shop/-/merge_requests/7'],
+      message: /is not a GitHub pull request URL/,
+    },
+    {
+      name: 'neither a URL nor --repo',
+      argv: ['run', '--base', 'main', '--head', 'pr/1'],
+      message: /--repo is required/,
+    },
+  ])('exits 2 for $name, writing nothing', async ({ argv, message }) => {
+    const source = fakePullRequests();
+    const h = harness(cwd, createStubStages(), source);
+
+    expect(await runCli(argv, h.io, h.deps)).toBe(EXIT_CODES.usage);
+    expect(h.output().stderr).toMatch(message);
+    expect(source.calls).toEqual([]);
     expect(await nodeFileSystem.exists(path.join(cwd, '.bdiff'))).toBe(false);
   });
 });

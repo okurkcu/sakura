@@ -78,11 +78,12 @@ describe('resolveIntent', () => {
     expect(client.calls).toEqual([{ repo: { owner: 'acme', name: 'shop' }, number: 42 }]);
   });
 
-  it('falls back to the head commits when GitHub fails, noting why', async () => {
+  it.each([
+    new BdiffError('HTTP_FAILED', 'GitHub answered 500 for pull request acme/shop#42'),
+    new BdiffError('PR_NOT_FOUND', 'GitHub has no pull request acme/shop#42, or it is private'),
+  ])('falls back to the head commits when GitHub fails ($code), noting why', async (failure) => {
     const { git } = gitLog('Format the latest order total and include its currency\n\n\u001e');
-    const client = github(
-      new BdiffError('HTTP_FAILED', 'GitHub answered 404 for pull request #42'),
-    );
+    const client = github(failure);
 
     expect(
       await resolveIntent(target({ prNumber: 42 }), workspace, { github: client, git }, ctx),
@@ -90,7 +91,7 @@ describe('resolveIntent', () => {
       source: 'commits',
       title: 'Format the latest order total and include its currency',
       body: '',
-      notes: ['GitHub answered 404 for pull request #42'],
+      notes: [failure.message],
     });
   });
 

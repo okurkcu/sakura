@@ -1,7 +1,8 @@
 # bdiff CLI
 
 ```bash
-pnpm bdiff run --repo <url|path> --base <ref> --head <ref> [options]
+pnpm bdiff run https://github.com/<owner>/<repo>/pull/<n> [options]
+pnpm bdiff run --repo <url|path> --base <ref> --head <ref> [--pr <n>] [options]
 pnpm bdiff batch <dataset.json> [--concurrency 1|2] [--resume | --force] [--only <tag=value>]… [--shard <i/n>] [options]
 pnpm bdiff stats [--by difficulty|prType|author] [--markdown <file>] [--out <dir>]
 ```
@@ -10,7 +11,7 @@ From a build, the same command is `node packages/cli/dist/main.js run …` (pack
 
 ## `bdiff run`
 
-Compares the behavior of `--base` and `--head` of a repository and writes a run record. It needs a running Docker daemon and, for the UI probe, Chromium installed with `pnpm browser:install`; without it the run fails at `probe-ui` with `BROWSER_UNAVAILABLE`.
+Compares the behavior of `--base` and `--head` of a repository, or of a GitHub pull request given by its URL, and writes a run record. It needs a running Docker daemon and, for the UI probe, Chromium installed with `pnpm browser:install`; without it the run fails at `probe-ui` with `BROWSER_UNAVAILABLE`.
 
 | Flag                  | Env                 | Default  | Meaning                                                                              |
 | --------------------- | ------------------- | -------- | ------------------------------------------------------------------------------------ |
@@ -33,7 +34,20 @@ Other environment variables:
 | `BDIFF_PRICING`      | Path of the pricing table; default `config/pricing.json` in the bdiff checkout.                                                                                                                      |
 | `BDIFF_CACHE_DIR`    | Cache of bare repository clones (`repos/`) and detected recipes (`recipes/`), reused across runs. Default `$XDG_CACHE_HOME/bdiff`, else `~/.cache/bdiff`. Safe to delete.                            |
 | `ANTHROPIC_API_KEY`  | Claude API key for the LLM stages: setup repair, generated API requests and interpretation (an `ant auth login` profile also works). Only needed when a run calls the LLM. Never logged or recorded. |
-| `GITHUB_TOKEN`       | Optional GitHub token for fetching PR text. Never logged or recorded.                                                                                                                                |
+| `GITHUB_TOKEN`       | Optional GitHub token for reading pull requests (a PR URL, PR text); raises GitHub's rate limit. Never logged or recorded.                                                                           |
+
+### By pull request URL
+
+`bdiff run https://github.com/<owner>/<repo>/pull/<n>` (also `…/files`, `…/commits`, `…/checks`, with a trailing slash, query string or fragment) reads the PR from the GitHub API and runs it like the long form. The URL replaces `--repo`, `--base`, `--head` and `--pr`: combining them, or an argument that is not a GitHub PR URL, exits with 2. The other options work as usual.
+
+| Long form | Taken from the PR                                                                                                                                                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--repo`  | `https://github.com/<base repository>`, also for a PR from a fork.                                                                                                                                                                            |
+| `--base`  | The base branch while the PR is open. Once it is closed or merged, the base commit it was last compared with, because the branch may already contain the PR's changes.                                                                        |
+| `--head`  | The head branch for an open PR from the same repository. Otherwise the head commit, since a fork's branch name can match a branch of the base repository and a closed PR's branch may be gone; bdiff fetches it through `refs/pull/<n>/head`. |
+| `--pr`    | The PR number. The PR's title and body are recorded with the target and given to the interpretation.                                                                                                                                          |
+
+`GITHUB_TOKEN` is optional for public repositories. If GitHub has no such PR (or it is private), the run is recorded as failed at `workspace` with `PR_NOT_FOUND` and exits with 1. When GitHub's rate limit is reached, it is recorded as `HTTP_FAILED`, and the message suggests setting `GITHUB_TOKEN`.
 
 ## Output
 
