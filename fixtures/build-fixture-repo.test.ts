@@ -5,7 +5,7 @@ import path from 'node:path';
 import { nodeFileSystem } from '@bdiff/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { BASE_BRANCH, PR_BRANCHES } from './branches.js';
+import { BASE_BRANCH, PR_BRANCHES, VARIANT_BRANCHES, VARIANT_SPECS } from './branches.js';
 import { buildFixtureRepo } from './build-fixture-repo.js';
 import { loadExpected } from './expected-schema.js';
 import type { Expected } from './expected-schema.js';
@@ -24,10 +24,10 @@ describe('buildFixtureRepo', () => {
     await repo.remove();
   });
 
-  it('creates main and every PR branch, leaving main checked out and clean', async () => {
+  it('creates main and every PR and variant branch, leaving main checked out and clean', async () => {
     const branches = (await git(repo.path, ['branch', '--format=%(refname:short)'])).split('\n');
 
-    expect(branches.sort()).toEqual([BASE_BRANCH, ...PR_BRANCHES].sort());
+    expect(branches.sort()).toEqual([BASE_BRANCH, ...PR_BRANCHES, ...VARIANT_BRANCHES].sort());
     expect(await git(repo.path, ['branch', '--show-current'])).toBe(BASE_BRANCH);
     expect(await git(repo.path, ['status', '--porcelain'])).toBe('');
   });
@@ -37,6 +37,26 @@ describe('buildFixtureRepo', () => {
       expect(await git(repo.path, ['rev-list', '--count', `${BASE_BRANCH}..${branch}`])).toBe('1');
       expect(await git(repo.path, ['merge-base', BASE_BRANCH, branch])).toBe(repo.commits.main);
     }
+  });
+
+  it.each(VARIANT_SPECS)('gives $branch one commit on top of $from', async ({ branch, from }) => {
+    expect(await git(repo.path, ['rev-list', '--count', `${from}..${branch}`])).toBe('1');
+    expect(await git(repo.path, ['merge-base', from, branch])).toBe(repo.commits[from]);
+  });
+
+  it('builds the needs-repair variant from its overlay', async () => {
+    const diff = await git(repo.path, [
+      'diff',
+      '--name-status',
+      `${BASE_BRANCH}..variant/needs-repair`,
+    ]);
+
+    expect(parseNameStatus(diff).map((file) => [file.status, file.path])).toEqual([
+      ['modified', 'next.config.ts'],
+      ['modified', 'package.json'],
+      ['modified', 'README.md'],
+      ['added', 'server.mjs'],
+    ]);
   });
 
   it.each(PR_BRANCHES)('changes exactly the expected files on %s', async (branch) => {

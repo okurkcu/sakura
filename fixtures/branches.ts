@@ -10,7 +10,15 @@ export const PR_BRANCHES = [
 ] as const;
 
 export type PrBranch = (typeof PR_BRANCHES)[number];
-export type FixtureBranch = typeof BASE_BRANCH | PrBranch;
+
+/**
+ * Branches that are not pull requests of the shop but variants of it, for features that need a
+ * differently built app. They have no entry in `expected.json`.
+ */
+export const VARIANT_BRANCHES = ['variant/needs-repair', 'variant/needs-repair-change'] as const;
+export type VariantBranch = (typeof VARIANT_BRANCHES)[number];
+
+export type FixtureBranch = typeof BASE_BRANCH | PrBranch | VariantBranch;
 
 /** How a PR branch is made from `main`. */
 export interface BranchSpec {
@@ -47,5 +55,40 @@ export const BRANCH_SPECS: readonly BranchSpec[] = [
     overlay: 'docs-only',
     deletes: [],
     message: 'Document the pages in the README',
+  },
+];
+
+/** How a variant branch is made: one overlay on top of another branch, in one commit. */
+export interface VariantSpec {
+  readonly branch: VariantBranch;
+  readonly from: typeof BASE_BRANCH | VariantBranch;
+  /** Directory under `fixtures/branches/` whose files are copied over `from`. */
+  readonly overlay: string;
+  readonly message: string;
+}
+
+/**
+ * Every variant branch, in the order they are created (after the PR branches).
+ *
+ * `variant/needs-repair` is the shop as a repository whose setup bdiff's detected recipe gets wrong:
+ * the build needs `SESSION_SECRET`, which only the README mentions (no example env file), and the
+ * app refuses `next start` because it must run on its own server (`pnpm start`, `node server.mjs`).
+ * The setup repair loop must fix both. `variant/needs-repair-change` is a pull request on top of it
+ * that moves the order helpers without changing behavior (the `refactor-no-change` overlay, the old
+ * module left in place), so bdiff can run base and head with the same repaired recipe and the run
+ * needs the LLM for nothing but the repair.
+ */
+export const VARIANT_SPECS: readonly VariantSpec[] = [
+  {
+    branch: 'variant/needs-repair',
+    from: BASE_BRANCH,
+    overlay: 'needs-repair',
+    message: "Require a session secret and run on the shop's own server",
+  },
+  {
+    branch: 'variant/needs-repair-change',
+    from: 'variant/needs-repair',
+    overlay: 'refactor-no-change',
+    message: 'Move order helpers into an order repository module',
   },
 ];
