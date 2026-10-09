@@ -178,7 +178,12 @@ describe('runPipeline events, result.json and LLM modes', () => {
       ]),
     );
     expect(events).toContainEqual({ type: 'log', level: 'info', message: 'run started' });
-    expect(events).toContainEqual({ type: 'log', level: 'info', message: 'stage finished' });
+    expect(events).toContainEqual({
+      type: 'log',
+      level: 'info',
+      message: 'stage finished',
+      stage: 'diff',
+    });
     expect(JSON.parse(String(fs.files.get(PATHS.resultJson)))).toEqual(
       JSON.parse(JSON.stringify(result)),
     );

@@ -50,6 +50,7 @@ import type {
   RunResult,
   Target,
 } from '@bdiff/core';
+import { createDemoRunSource, createWorkspaceRunSource, PANEL_PATHS } from '@bdiff/panel';
 import { createReportStage } from '@bdiff/report';
 import { Command, CommanderError } from 'commander';
 
@@ -59,16 +60,25 @@ import {
   parseBatchConfig,
   parseRunConfig,
   parseStatsConfig,
+  parseUiConfig,
   RUN_DEFAULTS,
   RUN_ENV,
+  UI_DEFAULT_PORT,
 } from './config.js';
-import type { BatchFlags, RunFlags, StatsFlags } from './config.js';
+import type { BatchFlags, RunFlags, StatsFlags, UiFlags } from './config.js';
 import { DATASET_TAG_NAMES, loadDataset, selectEntries } from './dataset.js';
 import { resolvePullRequestTarget, unresolvedPullRequestTarget } from './pr-url.js';
 import { readRunRecords } from './run-records.js';
 import { formatStats, formatStatsMarkdown } from './stats-text.js';
 import { computeStats, countedRecords } from './stats.js';
 import { resolveToolVersion } from './tool-version.js';
+import {
+  createDockerProbe,
+  createPanelServices,
+  createSuiteRunner,
+  experimentNumbers,
+} from './ui.js';
+import type { PanelServices } from './ui.js';
 
 /** Process exit codes of `bdiff`. */
 export const EXIT_CODES = {
@@ -118,6 +128,8 @@ export interface CliDeps {
   readonly cwd: string;
   /** Resolves `bdiff run <pr-url>`; GitHub in production. */
   readonly pullRequests: PullRequestSource;
+  /** What `bdiff ui` needs: the web build, the server, the browser. */
+  readonly panel: PanelServices;
 }
 
 /** Root of the bdiff checkout (`packages/cli/{src,dist}/` → `../../..`). */
@@ -153,6 +165,7 @@ export function createDefaultCliDeps(env: Readonly<Record<string, string | undef
     }),
     createLogger: (level) => createLogger({ level }),
     pullRequests: github,
+    panel: createPanelServices(exec, nodeFileSystem),
     pricingPath: env.BDIFF_PRICING ?? path.join(REPO_ROOT, 'config', 'pricing.json'),
     llmConfigPath: path.join(REPO_ROOT, 'config', 'llm.json'),
     cwd,
@@ -196,6 +209,7 @@ export async function runCli(
     | { readonly name: 'run'; readonly flags: RunFlags }
     | { readonly name: 'batch'; readonly dataset: string; readonly flags: BatchFlags }
     | { readonly name: 'stats'; readonly flags: StatsFlags }
+    | { readonly name: 'ui'; readonly flags: UiFlags }
     | undefined;
   const program = new Command('bdiff')
     .description('Behavior diff for pull requests: run base and head, show how behavior changed.')
@@ -265,6 +279,24 @@ export async function runCli(
     .action((flags: StatsFlags) => {
       command = { name: 'stats', flags };
     });
+  program
+    .command('ui')
+    .description('Open the dev panel: live runs, results and the fixture check (local only).')
+    .option(
+      '--port <n>',
+      `port on 127.0.0.1 (default ${String(UI_DEFAULT_PORT)}; 0 picks a free one)`,
+    )
+    .option(
+      '--workspace <dir>',
+      `workspace to show (env ${RUN_ENV.outDir}, default ${RUN_DEFAULTS.outDir})`,
+    )
+    .option('--demo', 'show the bundled demo data instead (no Docker, no API key needed)')
+    .option('--no-open', 'do not open the browser')
+    .option('--llm <mode>', `LLM mode of suite runs started from the panel: ${llmOption}`)
+    .option('--log-level <level>', `${logLevelOption}, default warn`)
+    .action((flags: UiFlags) => {
+      command = { name: 'ui', flags };
+    });
 
   try {
     await program.parseAsync([...argv], { from: 'user' });
@@ -281,6 +313,8 @@ export async function runCli(
       return batch(command.dataset, command.flags, io, deps);
     case 'stats':
       return stats(command.flags, io, deps);
+    case 'ui':
+      return ui(command.flags, io, deps);
     case undefined:
       program.outputHelp({ error: true });
       return EXIT_CODES.usage;
@@ -487,6 +521,99 @@ async function batch(
     }
     return outcome.unrecorded.length > 0 ? EXIT_CODES.failed : EXIT_CODES.success;
   });
+}
+
+/**
+ * `bdiff ui`: builds the web UI if needed, serves the panel on 127.0.0.1 until Ctrl+C, and opens
+ * the browser. With `--demo` it shows the bundled demo data; otherwise the workspace, live.
+ */
+async function ui(flags: UiFlags, io: CliIo, deps: CliDeps): Promise<number> {
+  let config;
+  try {
+    config = parseUiConfig(flags, io.env);
+  } catch (error) {
+    return usage(io, 'ui', error);
+  }
+  const logger = deps.createLogger(config.logLevel);
+  const stop = new AbortController();
+  const onSignal = () => {
+    stop.abort(new BdiffError('ABORTED', 'Interrupted'));
+  };
+  for (const signal of STOP_SIGNALS) {
+    io.signals.on(signal, onSignal);
+  }
+  try {
+    const workspace = path.resolve(deps.cwd, config.workspace);
+    const expectedFile = path.join(REPO_ROOT, 'fixtures', 'expected.json');
+    const toolVersion = await resolveToolVersion({
+      env: io.env,
+      exec: deps.exec,
+      cwd: REPO_ROOT,
+      signal: stop.signal,
+      logger,
+    });
+    await deps.panel.buildWeb(logger);
+    const source = config.demo
+      ? createDemoRunSource({ fs: deps.fs, clock: deps.clock, root: PANEL_PATHS.demo })
+      : createWorkspaceRunSource({
+          fs: deps.fs,
+          root: workspace,
+          isAlive: (pid) => deps.panel.isAlive(pid),
+        });
+    const server = await deps.panel.start(
+      {
+        source,
+        fs: deps.fs,
+        clock: deps.clock,
+        logger,
+        demo: config.demo,
+        toolVersion,
+        llmMode: config.llm.mode,
+        webRoot: PANEL_PATHS.webDist,
+        ...((await deps.fs.exists(expectedFile)) ? { expectedFile } : {}),
+        docker: createDockerProbe(deps.exec),
+        experiment: experimentNumbers,
+        ...(config.demo
+          ? {}
+          : {
+              suite: createSuiteRunner({
+                exec: deps.exec,
+                repoRoot: REPO_ROOT,
+                workspace,
+                llmMode: config.llm.mode,
+                env: io.env,
+              }),
+            }),
+      },
+      config.port,
+    );
+    io.stdout.write(
+      `bdiff ui: ${server.url}${config.demo ? ' (demo data)' : ''}\n  workspace: ${source.root}\n  LLM: ${config.llm.mode}${config.llm.mode === 'on' ? '' : ' (add ANTHROPIC_API_KEY to turn it on)'}\n  Ctrl+C to stop\n`,
+    );
+    if (config.open) {
+      deps.panel.openBrowser(server.url, stop.signal).catch((error: unknown) => {
+        logger.warn('could not open the browser; open the URL yourself', { err: error });
+      });
+    }
+    await new Promise<void>((resolve) => {
+      if (stop.signal.aborted) {
+        resolve();
+      }
+      stop.signal.addEventListener('abort', () => {
+        resolve();
+      });
+    });
+    await server.close();
+    io.stdout.write('bdiff ui: stopped\n');
+    return EXIT_CODES.success;
+  } catch (error) {
+    io.stderr.write(`bdiff ui: ${describe(error)}\n`);
+    return stop.signal.aborted ? EXIT_CODES.interrupted : EXIT_CODES.failed;
+  } finally {
+    for (const signal of STOP_SIGNALS) {
+      io.signals.off(signal, onSignal);
+    }
+  }
 }
 
 async function stats(flags: StatsFlags, io: CliIo, deps: CliDeps): Promise<number> {

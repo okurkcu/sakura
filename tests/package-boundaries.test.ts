@@ -48,6 +48,30 @@ describe('package boundaries', () => {
       from: 'packages/report/src/boundary.ts',
       code: "export { CLI_PACKAGE_NAME } from '../../cli/src/index.js';",
     },
+    {
+      from: 'packages/core/src/boundary.ts',
+      code: "export { PANEL_PACKAGE_NAME } from '@bdiff/panel';",
+    },
+    {
+      from: 'packages/core/src/boundary.ts',
+      code: "export { PANEL_PACKAGE_NAME } from '../../panel/src/index.js';",
+    },
+    {
+      from: 'packages/panel/src/boundary.ts',
+      code: "export { CLI_PACKAGE_NAME } from '@bdiff/cli';",
+    },
+    {
+      from: 'packages/panel/src/boundary.ts',
+      code: "export { REPORT_PACKAGE_NAME } from '@bdiff/report';",
+    },
+    {
+      from: 'packages/panel/web/boundary.ts',
+      code: "export { CLI_PACKAGE_NAME } from '../../cli/src/index.js';",
+    },
+    {
+      from: 'packages/report/src/boundary.ts',
+      code: "export { PANEL_PACKAGE_NAME } from '@bdiff/panel';",
+    },
   ])('rejects `$code` in $from', async ({ from, code }) => {
     const violations = await boundaryViolations(from, code);
 
@@ -67,6 +91,14 @@ describe('package boundaries', () => {
     {
       from: 'packages/cli/src/boundary.ts',
       code: "export { REPORT_PACKAGE_NAME } from '@bdiff/report';",
+    },
+    {
+      from: 'packages/cli/src/boundary.ts',
+      code: "export { PANEL_PACKAGE_NAME } from '@bdiff/panel';",
+    },
+    {
+      from: 'packages/panel/src/boundary.ts',
+      code: "export { CORE_PACKAGE_NAME } from '@bdiff/core';",
     },
   ])('allows `$code` in $from', async ({ from, code }) => {
     expect(await boundaryViolations(from, code)).toEqual([]);

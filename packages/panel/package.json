@@ -1,0 +1,26 @@
+{
+  "name": "@bdiff/panel",
+  "version": "0.0.0",
+  "private": true,
+  "description": "bdiff dev panel: a local web UI over the runs of a workspace (bdiff ui).",
+  "type": "module",
+  "exports": {
+    ".": {
+      "bdiff-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@bdiff/core": "workspace:*",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "preact": "^11.0.1",
+    "vite": "^8.3.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0",
+    "preact-render-to-string": "^6.8.0"
+  }
+}

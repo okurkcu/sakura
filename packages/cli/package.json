@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@bdiff/core": "workspace:*",
+    "@bdiff/panel": "workspace:*",
     "@bdiff/report": "workspace:*",
     "commander": "^15.0.0",
     "zod": "^4.6.5"

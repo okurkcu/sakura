@@ -193,20 +193,21 @@ export async function runPipeline(
   const skipStage = (stage: StageName): void => {
     recorder.timer.skip(stage);
     events.emit({ type: 'stage-finished', stage, durationMs: 0, status: 'skipped' });
-    logger.info('stage skipped', { stage, llmMode });
+    logger.child({ stage }).info('stage skipped', { llmMode });
   };
 
   let currentStage: StageName | undefined;
   const runStage = async <I, O>(stage: Stage<I, O>, input: I): Promise<O> => {
     throwIfAborted(run.signal);
     currentStage = stage.name;
-    logger.info('stage started', { stage: stage.name });
+    const stageLogger = logger.child({ stage: stage.name });
+    stageLogger.info('stage started');
     const output = await measured(stage.name, () =>
       raceAbort(stage.run(input, contextFor(stage.name, run.signal)), run.signal, () =>
         abortError(run.signal),
       ),
     );
-    logger.info('stage finished', { stage: stage.name });
+    stageLogger.info('stage finished');
     return output;
   };
 

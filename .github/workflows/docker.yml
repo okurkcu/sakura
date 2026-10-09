@@ -10,6 +10,7 @@ on:
       - packages/core/**
       - packages/cli/**
       - packages/report/**
+      - packages/panel/**
       - fixtures/**
       - e2e/**
       - pnpm-lock.yaml

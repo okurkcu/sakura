@@ -26,6 +26,7 @@ import {
   FakeExec,
   TEST_RUN_ID,
 } from '@bdiff/core/testing';
+import { startPanelServer } from '@bdiff/panel';
 import { createReportStage } from '@bdiff/report';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -71,6 +72,7 @@ function harness(
   let stderr = '';
   const signals = new EventEmitter();
   const forceExit = vi.fn<(code: number) => void>();
+  const opened: string[] = [];
   const io = {
     stdout: { write: (text: string) => (stdout += text) },
     stderr: { write: (text: string) => (stderr += text) },
@@ -88,8 +90,18 @@ function harness(
     llmConfigPath,
     cwd,
     pullRequests,
+    panel: {
+      buildWeb: () => Promise.resolve(),
+      start: startPanelServer,
+      openBrowser: (url) => {
+        opened.push(url);
+        return Promise.resolve();
+      },
+      isAlive: () => false,
+    },
   };
   return {
+    opened,
     io,
     deps,
     signals,
@@ -762,5 +774,73 @@ describe('summarize', () => {
 
     expect(summary).not.toContain('report:');
     expect(summary).toContain('  record: /out/run.json\n');
+  });
+});
+
+describe('runCli ui', () => {
+  let cwd: string;
+
+  beforeEach(async () => {
+    cwd = await mkdtemp(path.join(tmpdir(), 'bdiff-ui-'));
+  });
+
+  afterEach(async () => {
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  /** Starts `bdiff ui`, waits for its URL, and returns it with a way to stop it. */
+  async function startUi(args: string[]) {
+    const h = harness(cwd);
+    const exit = runCli(['ui', '--port', '0', ...args], h.io, h.deps);
+    const deadline = Date.now() + 10_000;
+    let url: string | undefined;
+    while (url === undefined && Date.now() < deadline) {
+      url = /bdiff ui: (http:\/\/127\.0\.0\.1:\d+)/.exec(h.output().stdout)?.[1];
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    if (url === undefined) {
+      throw new Error(`bdiff ui did not start: ${h.output().stderr}`);
+    }
+    return { h, url, exit };
+  }
+
+  it('serves the panel on 127.0.0.1 until Ctrl+C, then exits 0', async () => {
+    const { h, url, exit } = await startUi(['--demo', '--no-open']);
+
+    const status = (await (await fetch(`${url}/api/status`)).json()) as {
+      demo: boolean;
+      llmMode: string;
+    };
+    expect(status).toMatchObject({ demo: true, llmMode: 'off' });
+    expect(h.opened).toEqual([]);
+    h.signals.emit('SIGINT');
+
+    expect(await exit).toBe(EXIT_CODES.success);
+    expect(h.output().stdout).toContain('bdiff ui: stopped');
+    await expect(fetch(`${url}/api/status`)).rejects.toThrow();
+  });
+
+  it('shows the workspace and opens the browser unless --no-open', async () => {
+    const { h, url, exit } = await startUi(['--workspace', 'out']);
+
+    const status = (await (await fetch(`${url}/api/status`)).json()) as {
+      workspace: string;
+      demo: boolean;
+    };
+    expect(status).toMatchObject({ demo: false, workspace: path.join(cwd, 'out') });
+    expect(h.opened).toEqual([url]);
+    h.signals.emit('SIGTERM');
+    expect(await exit).toBe(EXIT_CODES.success);
+  });
+
+  it.each([
+    [['--port', 'abc'], '--port must be a number'],
+    [['--port', '80'], '--port must be 0 or 1024–65535'],
+    [['--llm', 'maybe'], '--llm must be one of on, off, fake'],
+  ])('rejects %j (exit 2)', async (args, message) => {
+    const h = harness(cwd);
+
+    expect(await runCli(['ui', ...args], h.io, h.deps)).toBe(EXIT_CODES.usage);
+    expect(h.output().stderr).toContain(message);
   });
 });

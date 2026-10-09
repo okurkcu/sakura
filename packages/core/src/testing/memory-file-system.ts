@@ -137,12 +137,20 @@ export function createMemoryFileSystem(
         }
         return [...names].sort();
       }),
-    listFiles: (root) =>
+    listFiles: (root, options = {}) =>
       Promise.resolve().then(() => {
         check('listFiles', root);
+        const ignored = new Set(options.ignoreDirs ?? []);
         return [...files.keys()]
           .filter((file) => file.startsWith(under(root)))
           .map((file) => file.slice(under(root).length))
+          .filter(
+            (file) =>
+              !file
+                .split('/')
+                .slice(0, -1)
+                .some((dir) => ignored.has(dir)),
+          )
           .sort();
       }),
   };
