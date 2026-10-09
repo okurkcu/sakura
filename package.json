@@ -17,6 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "test:docker": "vitest run --config vitest.docker.config.ts",
     "fixture:build": "tsx --conditions=bdiff-source fixtures/build-fixture-repo.ts",
+    "fixture:dataset": "tsx --conditions=bdiff-source fixtures/fixture-dataset.ts",
     "browser:install": "pnpm --filter @bdiff/core exec playwright install --only-shell chromium",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "bdiff": "tsx --conditions=bdiff-source packages/cli/src/main.ts",

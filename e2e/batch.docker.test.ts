@@ -3,12 +3,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { EXIT_CODES } from '@bdiff/cli';
-import type { DatasetEntry, Stats } from '@bdiff/cli';
+import type { Stats } from '@bdiff/cli';
 import { createExecaExec, nodeFileSystem, RunRecordSchema } from '@bdiff/core';
 import type { LlmTier, RunRecord } from '@bdiff/core';
 import { FakeLlmClient } from '@bdiff/core/testing';
-import { BASE_BRANCH, buildFixtureRepo, loadExpected } from '@bdiff/fixtures';
-import type { Expected, FixtureRepo, PrBranch } from '@bdiff/fixtures';
+import { buildFixtureRepo, fixtureDatasetEntries, loadExpected } from '@bdiff/fixtures';
+import type { Expected, FixtureRepo } from '@bdiff/fixtures';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { composeLeftovers } from './compose-leftovers.js';
@@ -18,18 +18,6 @@ import { worktreeLeftovers } from './worktree-leftovers.js';
 
 const exec = createExecaExec();
 const signal = new AbortController().signal;
-
-/** The dataset of the fixture: every PR branch, tagged by what it changes. */
-const ENTRIES: readonly (Pick<DatasetEntry, 'id'> & {
-  branch: PrBranch;
-  prType: DatasetEntry['tags']['prType'];
-})[] = [
-  { id: 'ui-change', branch: 'pr/ui-change', prType: 'ui' },
-  { id: 'api-breaking', branch: 'pr/api-breaking', prType: 'api' },
-  { id: 'refactor-no-change', branch: 'pr/refactor-no-change', prType: 'refactor' },
-  // No behavior change expected, like a refactor.
-  { id: 'docs-only', branch: 'pr/docs-only', prType: 'refactor' },
-];
 
 describe('bdiff batch and stats over the fixture (@docker)', () => {
   let root: string;
@@ -55,13 +43,7 @@ describe('bdiff batch and stats over the fixture (@docker)', () => {
 
   it('runs every branch, writes the index, and the stats add up', async () => {
     const dataset = path.join(root, 'dataset.json');
-    const entries: DatasetEntry[] = ENTRIES.map(({ id, branch, prType }) => ({
-      id,
-      repoUrl: fixture.path,
-      baseRef: BASE_BRANCH,
-      headRef: branch,
-      tags: { difficulty: 'easy', prType, author: 'human' },
-    }));
+    const entries = fixtureDatasetEntries(fixture.path);
     await writeFile(dataset, JSON.stringify({ entries }));
     const outDir = path.join(root, 'out');
     const cli = (argv: string[]) =>
@@ -86,10 +68,10 @@ describe('bdiff batch and stats over the fixture (@docker)', () => {
       );
       records.set(record.dataset?.id ?? '', record);
     }
-    expect([...records.keys()].sort()).toEqual(ENTRIES.map((e) => e.id).sort());
-    for (const { id, branch } of ENTRIES) {
+    expect([...records.keys()].sort()).toEqual(entries.map((e) => e.id).sort());
+    for (const { id, headRef } of entries) {
       const record = records.get(id);
-      const want = expected.branches[branch];
+      const want = expected.branches[headRef];
       expect(record?.status, id).toBe(want.impact.skip === undefined ? 'success' : 'skipped');
       expect(record?.counts.findings, id).toBe(want.findings.length);
       expect(record?.findingSummary.breaking, id).toBe(
