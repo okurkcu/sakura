@@ -214,6 +214,9 @@ importers:
 
   e2e:
     dependencies:
+      '@bdiff/cli':
+        specifier: workspace:*
+        version: link:../packages/cli
       '@bdiff/core':
         specifier: workspace:*
         version: link:../packages/core

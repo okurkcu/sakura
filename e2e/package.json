@@ -5,6 +5,7 @@
   "description": "End-to-end and integration tests of bdiff stages against the fixture repository.",
   "type": "module",
   "dependencies": {
+    "@bdiff/cli": "workspace:*",
     "@bdiff/core": "workspace:*",
     "@bdiff/fixtures": "workspace:*",
     "@bdiff/report": "workspace:*",
