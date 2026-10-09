@@ -7,7 +7,7 @@ export const PackageManagerNameSchema = z.enum(['npm', 'pnpm', 'yarn', 'bun']);
 export type PackageManagerName = z.infer<typeof PackageManagerNameSchema>;
 
 /** Where an environment variable value came from. */
-export const EnvSourceSchema = z.enum(['default', 'example', 'generated']);
+export const EnvSourceSchema = z.enum(['default', 'example', 'generated', 'llm']);
 export type EnvSource = z.infer<typeof EnvSourceSchema>;
 
 /** A backing service the app needs, run as its own container per side. */

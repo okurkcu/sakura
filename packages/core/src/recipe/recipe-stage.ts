@@ -1,13 +1,19 @@
-import path from 'node:path';
-
 import { detectRecipe } from './detect-recipe.js';
-import { readRecipeCache, recipeFingerprint, writeRecipeCache } from './recipe-cache.js';
+import {
+  readRecipeCache,
+  recipeCacheFile,
+  recipeFingerprint,
+  writeRecipeCache,
+} from './recipe-cache.js';
 import { loadRepoFiles } from './repo-files.js';
 import type { FileSystem } from '../adapters/file-system.js';
 import type { Recipe } from '../domain/recipe.js';
 import type { Workspace } from '../domain/workspace.js';
 import type { Stage } from '../pipeline/stage.js';
-import { resolveRepoSource } from '../workspace/repo-cache.js';
+
+/** Added to the recipe's notes when base and head differ in what the recipe depends on. */
+export const BASE_HEAD_DIFFER_NOTE =
+  'base and head differ in package manifests, lockfiles or Node version';
 
 /** Dependencies of the recipe stage. */
 export interface RecipeStageDeps {
@@ -30,11 +36,7 @@ export function createRecipeStage(deps: RecipeStageDeps): Stage<{ workspace: Wor
     run: async ({ workspace }, ctx) => {
       const head = await loadRepoFiles(deps.fs, workspace.headPath);
       const fingerprint = recipeFingerprint(head);
-      const cacheFile = path.join(
-        deps.cacheDir,
-        'recipes',
-        `${resolveRepoSource(ctx.target.repoUrl, deps.cwd).dirName}.json`,
-      );
+      const cacheFile = recipeCacheFile(deps.cacheDir, ctx.target.repoUrl, deps.cwd);
 
       const cached = await readRecipeCache(deps.fs, cacheFile, ctx.logger);
       let recipe: Recipe;
@@ -57,10 +59,7 @@ export function createRecipeStage(deps: RecipeStageDeps): Stage<{ workspace: Wor
         recipe = {
           ...recipe,
           confidence: recipe.confidence === 'high' ? 'medium' : recipe.confidence,
-          notes: [
-            ...recipe.notes,
-            'base and head differ in package manifests, lockfiles or Node version',
-          ],
+          notes: [...recipe.notes, BASE_HEAD_DIFFER_NOTE],
         };
       }
       ctx.logger.info('recipe ready', {

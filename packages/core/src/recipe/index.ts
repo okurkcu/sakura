@@ -11,3 +11,4 @@ export * from './parse-dotenv.js';
 export * from './recipe-cache.js';
 export * from './recipe-stage.js';
 export * from './repo-files.js';
+export * from './repair/index.js';

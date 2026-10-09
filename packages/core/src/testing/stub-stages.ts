@@ -1,4 +1,5 @@
 import type { Recipe } from '../domain/recipe.js';
+import { BdiffError } from '../errors/bdiff-error.js';
 import type { PipelineStages } from '../pipeline/pipeline-stages.js';
 
 const STUB_BASE_SHA = '0'.repeat(40);
@@ -68,6 +69,14 @@ export function createStubStages(): PipelineStages {
             head: { url: 'http://127.0.0.1:2', service: 'app-head' },
           },
         }),
+    },
+    // Like a run without LLM credentials: setup failures are not repaired.
+    repair: {
+      propose: {
+        name: 'repair',
+        run: () => Promise.reject(new BdiffError('LLM_UNAVAILABLE', 'Stub repair: no LLM')),
+      },
+      keep: { name: 'repair', run: () => Promise.resolve() },
     },
     probeUi: { name: 'probe-ui', run: () => Promise.resolve([]) },
     probeApi: {

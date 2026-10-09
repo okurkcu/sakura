@@ -5,6 +5,7 @@ export const StageNameSchema = z.enum([
   'workspace',
   'recipe',
   'environment',
+  'repair',
   'impact',
   'probe-ui',
   'probe-api',

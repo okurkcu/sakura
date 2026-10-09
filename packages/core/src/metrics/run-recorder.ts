@@ -8,6 +8,7 @@ import type { StageTimer } from './stage-timer.js';
 import type { Clock } from '../adapters/clock.js';
 import type { ApiRequest } from '../domain/api-probe.js';
 import type { Interpretation } from '../domain/interpretation.js';
+import type { SetupAttempt } from '../domain/setup-repair.js';
 import type { Side, StageName } from '../domain/stage.js';
 import type { Target } from '../domain/target.js';
 import { TargetSchema } from '../domain/target.js';
@@ -53,6 +54,8 @@ export interface RunRecorder {
   addCounts(counts: Partial<RunCounts>): void;
   /** Records the API probe's request set, generated requests included. */
   setApiRequests(requests: readonly ApiRequest[]): void;
+  /** Records the setup repair loop's attempts so far (replacing earlier ones). */
+  setSetupAttempts(attempts: readonly SetupAttempt[]): void;
   /** Records the interpretation's risk level. */
   setRiskLevel(riskLevel: Interpretation['riskLevel']): void;
   /**
@@ -95,6 +98,7 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
   };
   let apiRequests: ApiRequest[] = [];
   let riskLevel: Interpretation['riskLevel'] | null = null;
+  let setupAttempts: SetupAttempt[] = [];
   let finished = false;
 
   const build = (outcome: RunOutcome): RunRecord => {
@@ -114,6 +118,7 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
       counts: { ...counts },
       apiRequests: [...apiRequests],
       riskLevel,
+      setupAttempts: [...setupAttempts],
     };
     switch (outcome.status) {
       case 'success':
@@ -150,6 +155,9 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
     },
     setApiRequests: (requests) => {
       apiRequests = [...requests];
+    },
+    setSetupAttempts: (attempts) => {
+      setupAttempts = [...attempts];
     },
     setRiskLevel: (level) => {
       riskLevel = level;
