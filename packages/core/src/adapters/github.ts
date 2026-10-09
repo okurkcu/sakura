@@ -15,17 +15,46 @@ export interface PullRequestText {
   readonly body: string;
 }
 
+/** A pull request as `bdiff run <pr-url>` needs it: where its base and head are. */
+export interface PullRequest extends PullRequestText {
+  readonly state: 'open' | 'closed';
+  readonly merged: boolean;
+  /** The base branch, the commit the PR was last compared with, and the base repository. */
+  readonly base: { readonly ref: string; readonly sha: string; readonly repo: string };
+  /** The head branch and commit, and its repository (`null` when a fork was deleted). */
+  readonly head: { readonly ref: string; readonly sha: string; readonly repo: string | null };
+}
+
+/** Options of every GitHub read. */
+export interface GitHubReadOptions {
+  readonly timeoutMs: number;
+  readonly signal: AbortSignal;
+}
+
 /** Reads from the GitHub REST API. */
 export interface GitHubClient {
   /**
-   * @throws BdiffError `HTTP_FAILED` (with `details.status` when GitHub answered), or the abort
-   *   error of `signal`.
+   * The title and body of a pull request.
+   *
+   * @throws BdiffError `PR_NOT_FOUND` (missing or private), `HTTP_FAILED` (with `details.status`
+   *   when GitHub answered, `details.rateLimited` when rate limited), or the abort error of
+   *   `signal`.
    */
   getPullRequest(
     repo: GitHubRepo,
     number: number,
-    options: { readonly timeoutMs: number; readonly signal: AbortSignal },
+    options: GitHubReadOptions,
   ): Promise<PullRequestText>;
+}
+
+/** Resolves a pull request's base and head, for running it by URL. */
+export interface PullRequestSource {
+  /** @throws BdiffError as {@link GitHubClient.getPullRequest}. */
+  resolvePullRequest(
+    repo: GitHubRepo,
+    number: number,
+    options: GitHubReadOptions,
+  ): Promise<PullRequest>;
 }
 
 /** Options of {@link createGitHubClient}. */
@@ -36,59 +65,104 @@ export interface GitHubClientOptions {
   readonly baseUrl?: string;
 }
 
-const PullRequestSchema = z.object({ title: z.string(), body: z.string().nullable() });
+const PullRequestSchema = z.object({
+  title: z.string(),
+  body: z.string().nullable(),
+  state: z.enum(['open', 'closed']),
+  merged_at: z.string().nullable(),
+  base: z.object({ ref: z.string(), sha: z.string(), repo: z.object({ full_name: z.string() }) }),
+  head: z.object({
+    ref: z.string(),
+    sha: z.string(),
+    repo: z.object({ full_name: z.string() }).nullable(),
+  }),
+});
 
-/** The real {@link GitHubClient}, over `fetch`. */
-export function createGitHubClient(options: GitHubClientOptions = {}): GitHubClient {
+/** The real {@link GitHubClient} and {@link PullRequestSource}, over `fetch`. */
+export function createGitHubClient(
+  options: GitHubClientOptions = {},
+): GitHubClient & PullRequestSource {
   const baseUrl = options.baseUrl ?? 'https://api.github.com';
+  const resolvePullRequest = async (
+    repo: GitHubRepo,
+    number: number,
+    { timeoutMs, signal }: GitHubReadOptions,
+  ): Promise<PullRequest> => {
+    const what = `pull request ${repo.owner}/${repo.name}#${String(number)}`;
+    const url = `${baseUrl}/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}/pulls/${String(number)}`;
+    const timeout = AbortSignal.timeout(timeoutMs);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          accept: 'application/vnd.github+json',
+          'user-agent': 'bdiff',
+          'x-github-api-version': '2022-11-28',
+          ...(options.token === undefined ? {} : { authorization: `Bearer ${options.token}` }),
+        },
+        redirect: 'error',
+        signal: AbortSignal.any([signal, timeout]),
+      });
+    } catch (error) {
+      if (signal.aborted) {
+        throw abortError(signal);
+      }
+      throw new BdiffError('HTTP_FAILED', `GitHub request for ${what} failed`, {
+        cause: error,
+        details: { timedOut: timeout.aborted },
+      });
+    }
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw responseError(response, what);
+    }
+    const parsed = PullRequestSchema.safeParse(await response.json());
+    if (!parsed.success) {
+      throw new BdiffError('HTTP_FAILED', `Unexpected GitHub response for ${what}`, {
+        details: { issues: parsed.error.issues.map((issue) => issue.message) },
+      });
+    }
+    const pr = parsed.data;
+    return {
+      title: pr.title,
+      body: pr.body ?? '',
+      state: pr.state,
+      merged: pr.merged_at !== null,
+      base: { ref: pr.base.ref, sha: pr.base.sha, repo: pr.base.repo.full_name },
+      head: { ref: pr.head.ref, sha: pr.head.sha, repo: pr.head.repo?.full_name ?? null },
+    };
+  };
   return {
-    getPullRequest: async (repo, number, { timeoutMs, signal }) => {
-      const url = `${baseUrl}/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}/pulls/${String(number)}`;
-      const timeout = AbortSignal.timeout(timeoutMs);
-      let response: Response;
-      try {
-        response = await fetch(url, {
-          headers: {
-            accept: 'application/vnd.github+json',
-            'user-agent': 'bdiff',
-            'x-github-api-version': '2022-11-28',
-            ...(options.token === undefined ? {} : { authorization: `Bearer ${options.token}` }),
-          },
-          redirect: 'error',
-          signal: AbortSignal.any([signal, timeout]),
-        });
-      } catch (error) {
-        if (signal.aborted) {
-          throw abortError(signal);
-        }
-        throw new BdiffError(
-          'HTTP_FAILED',
-          `GitHub request for pull request #${String(number)} failed`,
-          {
-            cause: error,
-            details: { timedOut: timeout.aborted },
-          },
-        );
-      }
-      if (!response.ok) {
-        await response.body?.cancel();
-        throw new BdiffError(
-          'HTTP_FAILED',
-          `GitHub answered ${String(response.status)} for pull request #${String(number)}`,
-          {
-            details: { status: response.status },
-          },
-        );
-      }
-      const parsed = PullRequestSchema.safeParse(await response.json());
-      if (!parsed.success) {
-        throw new BdiffError('HTTP_FAILED', 'Unexpected GitHub pull request response', {
-          details: { issues: parsed.error.issues.map((issue) => issue.message) },
-        });
-      }
-      return { title: parsed.data.title, body: parsed.data.body ?? '' };
+    resolvePullRequest,
+    getPullRequest: async (repo, number, readOptions) => {
+      const { title, body } = await resolvePullRequest(repo, number, readOptions);
+      return { title, body };
     },
   };
+}
+
+/**
+ * The error for a non-2xx answer: `PR_NOT_FOUND` for 404 (GitHub also answers 404 for a private
+ * repository), a rate limit (429, or 403 with no requests left) as `HTTP_FAILED` that suggests
+ * `GITHUB_TOKEN`, any other status as `HTTP_FAILED`. Pure.
+ */
+function responseError(response: Response, what: string): BdiffError {
+  const { status } = response;
+  if (status === 404) {
+    return new BdiffError('PR_NOT_FOUND', `GitHub has no ${what}, or it is private`, {
+      details: { status },
+    });
+  }
+  if (status === 429 || (status === 403 && response.headers.get('x-ratelimit-remaining') === '0')) {
+    return new BdiffError(
+      'HTTP_FAILED',
+      `GitHub rate limit reached while reading ${what}; set GITHUB_TOKEN to raise the limit`,
+      { details: { status, rateLimited: true } },
+    );
+  }
+  return new BdiffError('HTTP_FAILED', `GitHub answered ${String(status)} for ${what}`, {
+    details: { status },
+  });
 }
 
 /** `{ owner, name }` of a `https://github.com/<owner>/<name>(.git)` URL, else `undefined`. Pure. */

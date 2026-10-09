@@ -30,6 +30,7 @@ export const ErrorCodeSchema = z.enum([
   'NO_MERGE_BASE',
   'FS_FAILED',
   'HTTP_FAILED',
+  'PR_NOT_FOUND',
   'ABORTED',
   'RUN_TIMEOUT',
   'CLEANUP_FAILED',

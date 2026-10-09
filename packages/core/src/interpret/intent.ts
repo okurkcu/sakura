@@ -51,7 +51,10 @@ export async function resolveIntent(
       });
       return { source: 'github', title: pr.title, body: pr.body, notes };
     } catch (error) {
-      if (!(error instanceof BdiffError) || error.code !== 'HTTP_FAILED') {
+      if (
+        !(error instanceof BdiffError) ||
+        (error.code !== 'HTTP_FAILED' && error.code !== 'PR_NOT_FOUND')
+      ) {
         throw error;
       }
       ctx.logger.warn('could not read the pull request from GitHub', { message: error.message });
