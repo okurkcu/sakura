@@ -21,6 +21,7 @@ const COLUMNS: readonly (readonly [string, (record: RunRecord) => CsvValue])[] =
   ['base_ref', (r) => r.target.baseRef],
   ['head_ref', (r) => r.target.headRef],
   ['pr_number', (r) => r.target.prNumber],
+  ['dataset_id', (r) => r.dataset?.id],
   ...StageNameSchema.options.map(
     (stage) => [`ms_${stage.replaceAll('-', '_')}`, (r: RunRecord) => stageMs(r, stage)] as const,
   ),
@@ -39,6 +40,8 @@ const COLUMNS: readonly (readonly [string, (record: RunRecord) => CsvValue])[] =
   ['raw_diffs', (r) => r.counts.rawDiffs],
   ['noise_diffs', (r) => r.counts.noiseDiffs],
   ['findings', (r) => r.counts.findings],
+  ['findings_breaking', (r) => r.findingSummary.breaking],
+  ['findings_unexpected', (r) => r.findingSummary.unexpected],
 ];
 
 /**

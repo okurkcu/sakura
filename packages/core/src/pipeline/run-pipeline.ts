@@ -12,11 +12,13 @@ import type { Target } from '../domain/target.js';
 import { abortError, throwIfAborted } from '../errors/abort.js';
 import { BdiffError } from '../errors/bdiff-error.js';
 import { createArtifactPaths } from '../metrics/artifact-paths.js';
+import { summarizeFindings } from '../metrics/finding-summary.js';
 import { createMetricsStore } from '../metrics/metrics-store.js';
 import type { MetricsStore } from '../metrics/metrics-store.js';
 import type { CostCalculator } from '../metrics/pricing.js';
 import { createRunId } from '../metrics/run-id.js';
 import type { RunId } from '../metrics/run-id.js';
+import type { RunDataset } from '../metrics/run-record.js';
 import { createRunRecorder } from '../metrics/run-recorder.js';
 import type { RunOutcome } from '../metrics/run-recorder.js';
 
@@ -49,6 +51,8 @@ export interface PipelineDeps {
   readonly store?: MetricsStore;
   readonly cleanupHookTimeoutMs?: number;
   readonly reportTimeoutMs?: number;
+  /** The dataset entry of a batch run, recorded in `run.json`. */
+  readonly dataset?: RunDataset;
 }
 
 /** A finished run. */
@@ -82,6 +86,7 @@ export async function runPipeline(
     toolVersion: deps.toolVersion,
     clock,
     costs: deps.costs,
+    ...(deps.dataset === undefined ? {} : { dataset: deps.dataset }),
   });
   const paths = createArtifactPaths(deps.outDir, runId);
   const store = deps.store ?? createMetricsStore({ fs: deps.fs, rootDir: deps.outDir });
@@ -196,6 +201,7 @@ export async function runPipeline(
       }));
       recorder.setApiRequests(api.requests);
       const findings = (outputs.findings = await runStage(stages.diff, { impact, ui, api }));
+      recorder.setFindingSummary(summarizeFindings(findings));
       const interpretation = (outputs.interpretation = await runStage(stages.interpret, {
         target,
         workspace,
@@ -205,6 +211,7 @@ export async function runPipeline(
         findings,
       }));
       recorder.setRiskLevel(interpretation.riskLevel);
+      recorder.setFindingSummary(summarizeFindings(findings, interpretation));
       outcome = { status: 'success' };
     }
   } catch (error) {

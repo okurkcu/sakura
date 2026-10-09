@@ -64,6 +64,22 @@ export const RunTotalsSchema = z.strictObject({
 });
 export type RunTotals = z.infer<typeof RunTotalsSchema>;
 
+/** The dataset entry a batch run came from: its id and tags (e.g. `difficulty: easy`). */
+export const RunDatasetSchema = z.strictObject({
+  id: z.string().min(1),
+  tags: z.record(z.string(), z.string()),
+});
+export type RunDataset = z.infer<typeof RunDatasetSchema>;
+
+/** Findings by severity, and how many the interpretation flagged as unexpected. */
+export const FindingSummarySchema = z.strictObject({
+  info: count,
+  warning: count,
+  breaking: count,
+  unexpected: count,
+});
+export type FindingSummary = z.infer<typeof FindingSummarySchema>;
+
 /** Why a run was skipped (e.g. a docs-only PR). */
 export const RunSkipSchema = z.strictObject({ reason: z.string().min(1) });
 export type RunSkip = z.infer<typeof RunSkipSchema>;
@@ -98,6 +114,13 @@ const runRecordBase = z.strictObject({
    * empty so records written before it existed still read.
    */
   setupAttempts: z.array(SetupAttemptSchema).default([]),
+  /** The dataset entry of a batch run; `null` for a single run. Defaults to `null` for old records. */
+  dataset: RunDatasetSchema.nullable().default(null),
+  /**
+   * Findings by severity and the number the interpretation flagged as unexpected; all zero until
+   * the diff (and interpret) stage ran. Defaults to zeros for old records.
+   */
+  findingSummary: FindingSummarySchema.default({ info: 0, warning: 0, breaking: 0, unexpected: 0 }),
 });
 
 /**

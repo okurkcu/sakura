@@ -35,6 +35,8 @@ Written atomically: a temp file is written next to it and renamed, so a reader n
 | `apiRequests`    | array                                   | The API probe's request set, in send order: `key`, `source` (`explicit`, `route` or `generated` by the LLM), `method`, `path`, `headers`, `body`, `description`, `endpoint`. Empty when no API was probed.                                                                               |
 | `riskLevel`      | `low` \| `medium` \| `high` \| `null`   | The interpretation's risk level; `null` when the run produced no interpretation (failed or skipped before it).                                                                                                                                                                           |
 | `setupAttempts`  | array                                   | Attempts of the setup repair loop, oldest first (empty when setup needed no repair): `attempt`, `trigger` (`stage`, `code`, `side`), `tier`, `patch` (the recipe patch, or `null`), `outcome` (`repaired`, `setup-failed`, `rejected` or `no-patch`), `errorCode`, `problem`, `costUsd`. |
+| `dataset`        | object \| `null`                        | The dataset entry of a batch run (`bdiff batch`): `id` and `tags` (`difficulty`, `prType`, `author`); `null` for a single run.                                                                                                                                                           |
+| `findingSummary` | object                                  | Findings by severity (`info`, `warning`, `breaking`) and `unexpected`: how many the interpretation flagged as not accounted for by the PR's intent. Zero until the diff (and interpret) stage ran.                                                                                       |
 
 Token counts per LLM call mirror the API's `usage` object:
 
@@ -68,6 +70,7 @@ The first line is the header. Rows are RFC 4180: fields containing a comma, quot
 | `base_ref`                  | Base ref as given.                                                                                                               |
 | `head_ref`                  | Head ref as given.                                                                                                               |
 | `pr_number`                 | Pull request number, if any.                                                                                                     |
+| `dataset_id`                | Dataset entry id of a batch run; empty for a single run.                                                                         |
 | `ms_workspace`              | Total ms in the workspace stage.                                                                                                 |
 | `ms_recipe`                 | Total ms in the recipe stage.                                                                                                    |
 | `ms_environment`            | Total ms in the environment stage (all attempts).                                                                                |
@@ -94,6 +97,8 @@ The first line is the header. Rows are RFC 4180: fields containing a comma, quot
 | `raw_diffs`                 | Differences between baseA and head before noise filtering, counted per visual region, text block, runtime signal and API change. |
 | `noise_diffs`               | Of those, the ones set aside as noise because baseA and baseB already differ there.                                              |
 | `findings`                  | Findings reported.                                                                                                               |
+| `findings_breaking`         | Findings with severity `breaking`.                                                                                               |
+| `findings_unexpected`       | Findings the interpretation flagged as unexpected for the PR's intent.                                                           |
 
 ## Pricing: `config/pricing.json`
 

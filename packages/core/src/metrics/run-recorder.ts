@@ -1,8 +1,21 @@
 import type { CostCalculator } from './pricing.js';
 import { RunIdSchema } from './run-id.js';
 import type { RunId } from './run-id.js';
-import { RUN_RECORD_SCHEMA_VERSION, RunCountsSchema, RunRecordSchema } from './run-record.js';
-import type { LlmUsage, RunCounts, RunRecord, RunTotals, TokenUsage } from './run-record.js';
+import {
+  RUN_RECORD_SCHEMA_VERSION,
+  RunCountsSchema,
+  RunDatasetSchema,
+  RunRecordSchema,
+} from './run-record.js';
+import type {
+  FindingSummary,
+  LlmUsage,
+  RunCounts,
+  RunDataset,
+  RunRecord,
+  RunTotals,
+  TokenUsage,
+} from './run-record.js';
 import { createStageTimer } from './stage-timer.js';
 import type { StageTimer } from './stage-timer.js';
 import type { Clock } from '../adapters/clock.js';
@@ -34,6 +47,8 @@ export interface RunRecorderOptions {
   readonly toolVersion: string;
   readonly clock: Clock;
   readonly costs: CostCalculator;
+  /** The dataset entry of a batch run. */
+  readonly dataset?: RunDataset;
 }
 
 /**
@@ -56,6 +71,8 @@ export interface RunRecorder {
   setApiRequests(requests: readonly ApiRequest[]): void;
   /** Records the setup repair loop's attempts so far (replacing earlier ones). */
   setSetupAttempts(attempts: readonly SetupAttempt[]): void;
+  /** Records the findings by severity and how many the interpretation flagged as unexpected. */
+  setFindingSummary(summary: FindingSummary): void;
   /** Records the interpretation's risk level. */
   setRiskLevel(riskLevel: Interpretation['riskLevel']): void;
   /**
@@ -99,6 +116,11 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
   let apiRequests: ApiRequest[] = [];
   let riskLevel: Interpretation['riskLevel'] | null = null;
   let setupAttempts: SetupAttempt[] = [];
+  let findingSummary: FindingSummary = { info: 0, warning: 0, breaking: 0, unexpected: 0 };
+  const dataset =
+    options.dataset === undefined
+      ? null
+      : parseOrThrow('dataset', () => RunDatasetSchema.parse(options.dataset));
   let finished = false;
 
   const build = (outcome: RunOutcome): RunRecord => {
@@ -119,6 +141,8 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
       apiRequests: [...apiRequests],
       riskLevel,
       setupAttempts: [...setupAttempts],
+      dataset,
+      findingSummary: { ...findingSummary },
     };
     switch (outcome.status) {
       case 'success':
@@ -158,6 +182,9 @@ export function createRunRecorder(options: RunRecorderOptions): RunRecorder {
     },
     setSetupAttempts: (attempts) => {
       setupAttempts = [...attempts];
+    },
+    setFindingSummary: (summary) => {
+      findingSummary = { ...summary };
     },
     setRiskLevel: (level) => {
       riskLevel = level;
