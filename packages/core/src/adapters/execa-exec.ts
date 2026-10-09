@@ -60,10 +60,10 @@ async function run(
   let graceTimer: NodeJS.Timeout | undefined;
   // Runs inside an event dispatch: it must never throw, or the whole process would crash.
   const stop = () => {
-    kill('SIGTERM');
+    kill(options.stopSignal ?? 'SIGTERM');
     graceTimer = setTimeout(() => {
       kill('SIGKILL');
-    }, KILL_GRACE_MS);
+    }, options.killGraceMs ?? KILL_GRACE_MS);
   };
 
   if (pid !== undefined) {
