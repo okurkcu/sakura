@@ -772,7 +772,7 @@ function lineText(line: unknown): string {
 /** The message of a runtime signal (`{ source, message }`), if `value` is one. Pure. */
 function signalMessage(value: unknown): string | undefined {
   if (typeof value === 'object' && value !== null && 'message' in value) {
-    const { message } = value as { message: unknown };
+    const { message } = value;
     return typeof message === 'string' ? message : undefined;
   }
   return undefined;
