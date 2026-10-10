@@ -395,10 +395,19 @@ function ResponseDiff({
 /** `number → string`, `added: "USD"`, `200 → 500`: what a finding changed. Pure. */
 export function describeChange(finding: Finding): string {
   const show = (value: unknown) => {
-    const text = JSON.stringify(value);
+    // A side without a value (a new runtime error had none before) is shown as a dash.
+    const text = value === undefined ? '—' : JSON.stringify(value);
     return text.length > 80 ? `${text.slice(0, 77)}…` : text;
   };
   switch (finding.kind) {
+    case 'runtime-error':
+    case 'failed-request': {
+      const message = signalMessage(finding.after) ?? signalMessage(finding.before);
+      const gone = finding.after === undefined;
+      return message === undefined
+        ? finding.kind
+        : `${gone ? 'no longer: ' : ''}${message.length > 160 ? `${message.slice(0, 157)}…` : message}`;
+    }
     case 'type-changed':
       return `changed type: ${show(finding.before)} → ${show(finding.after)}`;
     case 'field-added':
@@ -758,4 +767,13 @@ function FileLink({
 /** A line of a text finding: lines are strings; anything else is shown as JSON. Pure. */
 function lineText(line: unknown): string {
   return typeof line === 'string' ? line : JSON.stringify(line);
+}
+
+/** The message of a runtime signal (`{ source, message }`), if `value` is one. Pure. */
+function signalMessage(value: unknown): string | undefined {
+  if (typeof value === 'object' && value !== null && 'message' in value) {
+    const { message } = value;
+    return typeof message === 'string' ? message : undefined;
+  }
+  return undefined;
 }
