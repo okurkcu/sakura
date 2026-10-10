@@ -142,6 +142,74 @@ describe('escaping untrusted text', () => {
   });
 });
 
+describe('run page with every kind of finding', () => {
+  it('renders findings that have no value on one side (new errors, removed fields)', () => {
+    const record = testRecord(RUN);
+    const finding = (kind: Finding['kind'], extra: Partial<Finding>): Finding => ({
+      id: `${kind}-${String(Math.random())}`,
+      kind,
+      severity: 'warning',
+      location: {},
+      evidence: [],
+      ...extra,
+    });
+    const findings: Finding[] = [
+      finding('failed-request', {
+        location: { route: '/' },
+        after: { source: 'failed-request', message: 'GET /api/announcements → 404' },
+      }),
+      finding('runtime-error', {
+        location: { route: '/status' },
+        after: { source: 'page-error', message: 'TypeError: boom' },
+      }),
+      finding('field-removed', {
+        location: { endpoint: 'GET /api/products', jsonPath: '$[0].stock' },
+        before: 12,
+      }),
+      finding('field-added', {
+        location: { endpoint: 'GET /api/products', jsonPath: '$[0].available' },
+        after: true,
+      }),
+      finding('content-type-changed', {
+        location: { endpoint: 'GET /api/report' },
+        before: 'application/json',
+        after: 'text/csv',
+      }),
+    ];
+    const detail: RunDetailResponse = {
+      summary: summary(),
+      record,
+      result: {
+        record,
+        findings,
+        ui: (['baseA', 'baseB', 'head'] as const).map((probeRun) => ({
+          probeRun,
+          route: '/',
+          status: 200,
+          title: '',
+          text: '',
+          consoleErrors: [],
+          pageErrors: [],
+          failedRequests: [],
+          blockedRequests: [],
+          settled: true,
+          durationMs: 1,
+        })),
+        api: { requests: [], captures: [], notProbed: [] },
+      },
+      events: [],
+      files: [],
+    };
+
+    const html = renderToString(<RunDetailScreen detail={loaded(detail)} />);
+
+    expect(html).toContain('GET /api/announcements → 404');
+    expect(html).toContain('$[0].stock');
+    expect(html).toContain('field removed: was 12');
+    expect(html).toContain('application/json');
+  });
+});
+
 describe('describeChange', () => {
   const base: Finding = {
     id: 'x',
@@ -156,6 +224,19 @@ describe('describeChange', () => {
     [{ kind: 'field-added', after: 'USD' }, 'field added: "USD"'],
     [{ kind: 'field-removed', before: 1 }, 'field removed: was 1'],
     [{ kind: 'status-changed', before: 200, after: 500 }, '200 → 500'],
+    [{ kind: 'value-changed', after: 3 }, '— → 3'],
+    [{ kind: 'value-changed', before: 3 }, '3 → —'],
+    [
+      {
+        kind: 'failed-request',
+        after: { source: 'failed-request', message: 'GET /api/announcements → 404' },
+      },
+      'GET /api/announcements → 404',
+    ],
+    [
+      { kind: 'runtime-error', before: { source: 'page-error', message: 'TypeError: x' } },
+      'no longer: TypeError: x',
+    ],
   ])('%o → %s', (overrides, text) => {
     expect(describeChange({ ...base, ...overrides })).toBe(text);
   });
